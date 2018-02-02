@@ -18,7 +18,7 @@ load("//internal:node.bzl", nodejs_binary = "nodejs_binary_macro")
 
 package(default_visibility = ["//internal:__subpackages__"])
 
-exports_files(["rollup.config.js", "uglify.config.json"])
+exports_files(["rollup.config.js", "uglify.config.json", "tsconfig.json"])
 
 nodejs_binary(
     name = "rollup",
@@ -36,7 +36,8 @@ nodejs_binary(
 
 nodejs_binary(
     name = "uglify",
-    entry_point = "build_bazel_rules_nodejs_rollup_deps/node_modules/uglify-js/bin/uglifyjs",
+    entry_point = "build_bazel_rules_nodejs/internal/rollup/uglify.js",
     node_modules = "@build_bazel_rules_nodejs_rollup_deps//:node_modules",
     visibility = ["//visibility:public"],
+    data = [":uglify.js"],
 )
