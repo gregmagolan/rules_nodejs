@@ -123,7 +123,7 @@ def _nodejs_binary_impl(ctx):
         is_executable=True,
     )
 
-    runfiles = depset(sources + [node, ctx.outputs.loader, ctx.file._repository_args] + node_modules + ctx.files._node_runfiles)
+    runfiles = depset(sources + [node, ctx.outputs.loader, ctx.file._repository_args, ctx.file._runfiles_js] + node_modules + ctx.files._node_runfiles)
 
     return [DefaultInfo(
         executable = ctx.outputs.script,
@@ -177,6 +177,10 @@ _NODEJS_EXECUTABLE_ATTRS = {
         allow_files = True),
     "_repository_args": attr.label(
         default = Label("@nodejs//:bin/node_args.sh"),
+        allow_files = True,
+        single_file = True),
+    "_runfiles_js": attr.label(
+        default = Label("//internal/common:runfiles.js"),
         allow_files = True,
         single_file = True),
     "_launcher_template": attr.label(
