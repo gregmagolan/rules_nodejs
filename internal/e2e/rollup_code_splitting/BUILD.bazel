@@ -1,0 +1,9 @@
+load("//:defs.bzl", "rollup_bundle")
+
+rollup_bundle(
+    name = "bundle",
+    srcs = glob(["*.js"]),
+    additional_entry_points = ["internal/e2e/rollup_code_splitting/main2.js"],
+    entry_point = "internal/e2e/rollup_code_splitting/main1.js",
+    node_modules = "//internal/test:node_modules",
+)

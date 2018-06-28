@@ -31,7 +31,7 @@ rollup_module_mappings_aspect = aspect(
     attr_aspects = ["deps"],
 )
 
-def write_rollup_config(ctx, plugins=[], root_dir=None, filename="_%s.rollup.conf.js", output_format="iife"):
+def write_rollup_config(ctx, plugins=[], root_dir=None, filename="_%s.rollup.conf.js", output_format="iife", additional_entry_points=[]):
   """Generate a rollup config file.
 
   This is also used by the ng_rollup_bundle and ng_package rules in @angular/bazel.
@@ -43,6 +43,7 @@ def write_rollup_config(ctx, plugins=[], root_dir=None, filename="_%s.rollup.con
     root_dir: root directory for module resolution (defaults to None)
     filename: output filename pattern (defaults to `_%s.rollup.conf.js`)
     output_format: passed to rollup output.format option, e.g. "umd"
+    additional_entry_points: additional entry points for code splitting
 
   Returns:
     The rollup config file. See https://rollupjs.org/guide/en#configuration-files
@@ -51,6 +52,12 @@ def write_rollup_config(ctx, plugins=[], root_dir=None, filename="_%s.rollup.con
 
   # build_file_path includes the BUILD.bazel file, transform here to only include the dirname
   build_file_dirname = "/".join(ctx.build_file_path.split("/")[:-1])
+
+  entry_points = [ctx.attr.entry_point] + additional_entry_points
+
+  inputs = []
+  for e in entry_points:
+    inputs += ["\""+e+"\""]
 
   mappings = dict()
   all_deps = ctx.attr.deps + ctx.attr.srcs
@@ -82,6 +89,7 @@ def write_rollup_config(ctx, plugins=[], root_dir=None, filename="_%s.rollup.con
           "TMPL_additional_plugins": ",\n".join(plugins),
           "TMPL_banner_file": "\"%s\"" % ctx.file.license_banner.path if ctx.file.license_banner else "undefined",
           "TMPL_stamp_data": "\"%s\"" % ctx.version_file.path if ctx.version_file else "undefined",
+          "TMPL_inputs": ",".join(inputs),
           "TMPL_output_format": output_format,
           "TMPL_node_modules_path": node_modules_path,
       })
@@ -104,20 +112,29 @@ def run_rollup(ctx, sources, config, output):
   """
   map_output = ctx.actions.declare_file(output.basename + ".map", sibling = output)
 
+  _run_rollup(ctx, sources, config, output, map_output)
+
+  return map_output
+
+def _run_rollup(ctx, sources, config, output, map_output=None):
   args = ctx.actions.args()
   args.add(["--config", config.path])
-  args.add(["--output.file", output.path])
-  args.add(["--output.sourcemap", "--output.sourcemapFile", map_output.path])
-  args.add(["--input", ctx.attr.entry_point])
+  if map_output:
+    args.add(["--output.file", output.path])
+    args.add(["--output.sourcemap", "--output.sourcemapFile", map_output.path])
+  else:
+    args.add(["--output.dir", output.path])
+    args.add(["--output.sourcemap"])
+
   # We will produce errors as needed. Anything else is spammy: a well-behaved
   # bazel rule prints nothing on success.
   args.add("--silent")
 
-  args.add("--external")
-  args.add(ctx.attr.globals.keys(), join_with=",")
-
-  args.add("--globals")
-  args.add(["%s:%s" % g for g in ctx.attr.globals.items()], join_with=",")
+  if ctx.attr.globals:
+    args.add("--external")
+    args.add(ctx.attr.globals.keys(), join_with=",")
+    args.add("--globals")
+    args.add(["%s:%s" % g for g in ctx.attr.globals.items()], join_with=",")
 
   inputs = sources + ctx.files.node_modules + [config]
   if ctx.file.license_banner:
@@ -125,13 +142,16 @@ def run_rollup(ctx, sources, config, output):
   if ctx.version_file:
     inputs += [ctx.version_file]
 
+  outputs = [output]
+  if map_output:
+    outputs += [map_output]
+
   ctx.actions.run(
       executable = ctx.executable._rollup,
       inputs = inputs,
-      outputs = [output, map_output],
+      outputs = outputs,
       arguments = [args]
   )
-  return map_output
 
 def _run_tsc(ctx, input, output):
   args = ctx.actions.args()
@@ -147,7 +167,22 @@ def _run_tsc(ctx, input, output):
       arguments = [args]
   )
 
-def run_uglify(ctx, input, output, debug = False, comments = True, config_name = None, in_source_map = None):
+def _run_tsc_on_directory(ctx, input_dir, output_dir):
+  config = ctx.actions.declare_file("_%s.code-split.tsconfig.json" % ctx.label.name)
+
+  args = ctx.actions.args()
+  args.add(["--project", config.path])
+  args.add(["--input", input_dir.path])
+  args.add(["--output", output_dir.path])
+
+  ctx.action(
+      executable = ctx.executable._tsc_directory,
+      inputs = [input_dir],
+      outputs = [output_dir, config],
+      arguments = [args]
+  )
+
+def run_uglify(ctx, input, output, debug = False, comments = True, config_name = None, in_source_map = None, is_directory = False):
   """Runs uglify on an input file.
 
   This is also used by https://github.com/angular/angular.
@@ -162,30 +197,30 @@ def run_uglify(ctx, input, output, debug = False, comments = True, config_name =
         which will be `_[config_name].uglify.json` in the package where the target is declared
     in_source_map: sourcemap file for the input file, passed to the "--source-map content="
         option of rollup.
+    is_directory: should be set to True if input is a directory
 
   Returns:
     The sourcemap file
   """
-  map_output = ctx.actions.declare_file(output.basename + ".map", sibling = output)
-
   if not config_name:
     config_name = ctx.label.name
     if debug:
       config_name += ".debug"
-
   config = ctx.actions.declare_file("_%s.uglify.json" % config_name)
 
-  ctx.actions.expand_template(
-      output = config,
-      template =  ctx.file._uglify_config_tmpl,
-      substitutions = {
-          "TMPL_notdebug": "false" if debug else "true",
-          "TMPL_sourcemap": map_output.path,
-      },
-  )
+  if is_directory:
+    # there should be a map output for the main entry point (as well as other map outputs)
+    entry_point_basename = ctx.attr.entry_point.split("/")[-1]
+    if not entry_point_basename.endswith(".js"):
+      entry_point_basename += ".js"
+    map_output = ctx.actions.declare_file(output.basename + "/" + entry_point_basename + ".map")
+  else:
+    map_output = ctx.actions.declare_file(output.basename + ".map", sibling = output)
+
+  inputs = [input]
+  outputs = [output, config, map_output] if map_output else [output, config]
 
   args = ctx.actions.args()
-  inputs = [input, config]
 
   args.add(input.path)
   args.add(["--config-file", config.path])
@@ -203,14 +238,16 @@ def run_uglify(ctx, input, output, debug = False, comments = True, config_name =
   if comments:
     args.add("--comments")
   if debug:
+    args.add("--debug")
     args.add("--beautify")
 
   ctx.actions.run(
-      executable = ctx.executable._uglify,
+      executable = ctx.executable._uglify_wrapped,
       inputs = inputs,
-      outputs = [output, map_output],
+      outputs = outputs,
       arguments = [args]
   )
+
   return map_output
 
 def run_sourcemapexplorer(ctx, js, map, output):
@@ -235,7 +272,27 @@ def run_sourcemapexplorer(ctx, js, map, output):
       ],
   )
 
+def _generate_code_split_entry(ctx, folder):
+  output = ctx.actions.declare_file(folder + ".js")
+
+  build_file_prefix = "/".join(ctx.build_file_path.split("/")[:-1]) + "/"
+  main_entry_point = ctx.attr.entry_point.lstrip(build_file_prefix)
+  entry_points = {}
+  for e in [ctx.attr.entry_point] + ctx.attr.additional_entry_points:
+    entry_point = e.lstrip(build_file_prefix)
+    entry_points["./" + entry_point] = folder + "/" + entry_point.split("/")[-1]
+
+  ctx.actions.expand_template(
+      output = output,
+      template =  ctx.file._system_config_tmpl,
+      substitutions = {
+          "TMPL_entry_points": str(entry_points),
+          "TMPL_main_entry_point": main_entry_point,
+      })
+  return output
+
 def _rollup_bundle(ctx):
+  # Generate the bundles
   rollup_config = write_rollup_config(ctx)
   run_rollup(ctx, collect_es6_sources(ctx), rollup_config, ctx.outputs.build_es6)
   _run_tsc(ctx, ctx.outputs.build_es6, ctx.outputs.build_es5)
@@ -245,6 +302,24 @@ def _rollup_bundle(ctx):
   run_rollup(ctx, collect_es6_sources(ctx), umd_rollup_config, ctx.outputs.build_umd)
   run_sourcemapexplorer(ctx, ctx.outputs.build_es5_min, source_map, ctx.outputs.explore_html)
   files = [ctx.outputs.build_es5_min, source_map]
+
+  # Also generate a code split bundles if additional entry points have been specified
+  if ctx.attr.additional_entry_points:
+    rollup_config = write_rollup_config(ctx, filename="_%s.code-split.rollup.conf.js", output_format="cjs", additional_entry_points=ctx.attr.additional_entry_points)
+    code_split_es6_output_dir = ctx.actions.declare_directory(ctx.label.name + ".code-split.es6")
+    _run_rollup(ctx, collect_es6_sources(ctx), rollup_config, code_split_es6_output_dir)
+    code_split_es5_output_dir = ctx.actions.declare_directory(ctx.label.name + ".code-split.es5")
+    _run_tsc_on_directory(ctx, code_split_es6_output_dir, code_split_es5_output_dir)
+    code_split_es5_min_output_dir = ctx.actions.declare_directory(ctx.label.name + ".code-split.es5_min")
+    run_uglify(ctx, code_split_es5_output_dir, code_split_es5_min_output_dir, config_name="%s.code-split" % ctx.label.name, is_directory=True)
+    code_split_es5_min_debug_output_dir = ctx.actions.declare_directory(ctx.label.name + ".code-split.es5_min_debug")
+    run_uglify(ctx, code_split_es5_output_dir, code_split_es5_min_debug_output_dir, debug=True, config_name="%s.code-split-debug" % ctx.label.name, is_directory=True)
+    files += [code_split_es6_output_dir, code_split_es5_output_dir, code_split_es5_min_output_dir, code_split_es5_min_debug_output_dir]
+    files += [_generate_code_split_entry(ctx, ctx.label.name + ".code-split.es6")]
+    files += [_generate_code_split_entry(ctx, ctx.label.name + ".code-split.es5")]
+    files += [_generate_code_split_entry(ctx, ctx.label.name + ".code-split.es5_min")]
+    files += [_generate_code_split_entry(ctx, ctx.label.name + ".code-split.es5_min_debug")]
+
   return DefaultInfo(files = depset(files), runfiles = ctx.runfiles(files))
 
 ROLLUP_ATTRS = {
@@ -253,6 +328,10 @@ ROLLUP_ATTRS = {
         This should be a path relative to the workspace root.
         """,
         mandatory = True),
+    "additional_entry_points": attr.string_list(
+        doc = """Additional entry points of the application for code splitting, passed as the input to rollup.
+        These should be a path relative to the workspace root.
+        """),
     "srcs": attr.label_list(
         doc = """JavaScript source files from the workspace.
         These can use ES2015 syntax and ES Modules (import/export)""",
@@ -294,10 +373,14 @@ ROLLUP_ATTRS = {
         executable = True,
         cfg="host",
         default = Label("@build_bazel_rules_nodejs//internal/rollup:tsc")),
-    "_uglify": attr.label(
+    "_tsc_directory": attr.label(
         executable = True,
         cfg="host",
-        default = Label("@build_bazel_rules_nodejs//internal/rollup:uglify")),
+        default = Label("@build_bazel_rules_nodejs//internal/rollup:tsc-directory")),
+    "_uglify_wrapped": attr.label(
+        executable = True,
+        cfg="host",
+        default = Label("@build_bazel_rules_nodejs//internal/rollup:uglify-wrapped")),
     "_source_map_explorer": attr.label(
         executable = True,
         cfg = "host",
@@ -306,8 +389,8 @@ ROLLUP_ATTRS = {
         default = Label("@build_bazel_rules_nodejs//internal/rollup:rollup.config.js"),
         allow_files = True,
         single_file = True),
-    "_uglify_config_tmpl": attr.label(
-        default = Label("@build_bazel_rules_nodejs//internal/rollup:uglify.config.json"),
+    "_system_config_tmpl": attr.label(
+        default = Label("@build_bazel_rules_nodejs//internal/rollup:system.config.js"),
         allow_files = True,
         single_file = True),
 }

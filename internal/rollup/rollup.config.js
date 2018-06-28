@@ -13,8 +13,8 @@ const DEBUG = false;
 const moduleMappings = TMPL_module_mappings;
 const workspaceName = 'TMPL_workspace_name';
 const rootDir = 'TMPL_rootDir';
-const banner_file = TMPL_banner_file;
-const stamp_data = TMPL_stamp_data;
+const bannerFile = TMPL_banner_file;
+const stampData = TMPL_stamp_data;
 
 if (DEBUG)
   console.error(`
@@ -108,10 +108,10 @@ function resolveBazel(importee, importer, baseDir = process.cwd(), resolve = req
 }
 
 let banner = '';
-if (banner_file) {
-  banner = fs.readFileSync(banner_file, {encoding: 'utf-8'});
-  if (stamp_data) {
-    const versionTag = fs.readFileSync(stamp_data, {encoding: 'utf-8'})
+if (bannerFile) {
+  banner = fs.readFileSync(bannerFile, {encoding: 'utf-8'});
+  if (stampData) {
+    const versionTag = fs.readFileSync(stampData, {encoding: 'utf-8'})
                            .split('\n')
                            .find(s => s.startsWith('BUILD_SCM_VERSION'));
     // Don't assume BUILD_SCM_VERSION exists
@@ -129,7 +129,10 @@ function notResolved(importee, importer) {
   throw new Error(`Could not resolve import '${importee}' from '${importer}'`);
 }
 
-module.exports = {
+const inputs = [TMPL_inputs];
+const enableCodeSplitting = inputs.length > 1;
+
+const config = {
   resolveBazel,
   banner,
   onwarn: (warning) => {
@@ -137,10 +140,6 @@ module.exports = {
     // We can add exclusions here based on warning.code, if we discover some
     // types of warning should always be ignored under bazel.
     throw new Error(warning.message);
-  },
-  output: {
-    format: 'TMPL_output_format',
-    name: 'TMPL_global_name',
   },
   plugins: [TMPL_additional_plugins].concat([
     {resolveId: resolveBazel},
@@ -153,3 +152,21 @@ module.exports = {
     sourcemaps(),
   ])
 }
+
+if (enableCodeSplitting) {
+  config.experimentalCodeSplitting = true;
+  config.experimentalDynamicImport = true;
+  config.input = inputs;
+  config.output = {
+    format: 'TMPL_output_format',
+  };
+}
+else {
+  config.input = inputs[0];
+  config.output = {
+    format: 'TMPL_output_format',
+    name: 'TMPL_global_name',
+  };
+}
+
+module.exports = config;
