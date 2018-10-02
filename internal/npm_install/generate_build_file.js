@@ -79,7 +79,7 @@ load("@build_bazel_rules_nodejs//:defs.bzl", "nodejs_binary")
 # there are many files in filegroup.
 # See https://github.com/bazelbuild/bazel/issues/5153.
 filegroup(
-    name = "node_modules",
+    name = "node_modules_all",
     srcs = glob(
         include = ["node_modules/**/*"],
         exclude = [
@@ -96,8 +96,8 @@ filegroup(
 )
 
 # A lite version of the node_modules filegroup that includes
-# only js, d.ts and json files as well as the .bin folder. This can
-# be used in some cases to improve performance by reducing the number
+# only js, d.ts and json files as well as the bin and .bin folders. This
+# can be used in some cases to improve performance by reducing the number
 # of runfiles. The recommended approach to reducing performance
 # is to use fine grained deps such as ["@npm//:a", "@npm://b", ...].
 # There are cases where the node_modules_lite filegroup will
@@ -111,6 +111,7 @@ filegroup(
           "node_modules/**/*.js",
           "node_modules/**/*.d.ts",
           "node_modules/**/*.json",
+          "node_modules/**/bin/**",
           "node_modules/.bin/*",
         ],
         exclude = [
@@ -124,6 +125,14 @@ filegroup(
           "node_modules/**/* *",
         ],
     ),
+)
+
+# Alias for node_modules that uses the node_modules_lite
+# filegroup is more performant as it has fewer files.
+# See https://github.com/bazelbuild/bazel/issues/5153.
+alias(
+  name = "node_modules",
+  actual = "//:node_modules_lite",
 )
 
 `
