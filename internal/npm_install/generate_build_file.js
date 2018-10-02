@@ -369,7 +369,12 @@ filegroup(
 filegroup(
     name = "${pkg._dir}__files",
     srcs = glob(
-        include = ["node_modules/${pkg._dir}/**/*"],
+        include = [
+          "node_modules/${pkg._dir}/**/*.js",
+          "node_modules/${pkg._dir}/**/*.d.ts",
+          "node_modules/${pkg._dir}/**/*.json",
+          "node_modules/${pkg._dir}/bin/**",
+        ],
         exclude = [
           # Files under test & docs may contain file names that
           # are not legal Bazel labels (e.g.,
