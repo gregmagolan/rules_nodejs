@@ -96,9 +96,9 @@ filegroup(
 )
 
 # A lite version of the node_modules filegroup that includes
-# only js, d.ts and json files as well as the bin and .bin folders. This
-# can be used in some cases to improve performance by reducing the number
-# of runfiles. The recommended approach to reducing performance
+# only js, d.ts, json & proto files as well as the bin and .bin folders.
+# This can be used in some cases to improve performance by reducing the
+# number of runfiles. The recommended approach to reducing performance
 # is to use fine grained deps such as ["@npm//:a", "@npm://b", ...].
 # There are cases where the node_modules_lite filegroup will
 # not include files with no extension that are needed. The feature request
@@ -111,6 +111,7 @@ filegroup(
           "node_modules/**/*.js",
           "node_modules/**/*.d.ts",
           "node_modules/**/*.json",
+          "node_modules/**/*.proto",
           "node_modules/**/bin/**",
           "node_modules/.bin/*",
         ],
@@ -373,6 +374,7 @@ filegroup(
           "node_modules/${pkg._dir}/**/*.js",
           "node_modules/${pkg._dir}/**/*.d.ts",
           "node_modules/${pkg._dir}/**/*.json",
+          "node_modules/${pkg._dir}/**/*.proto",
           "node_modules/${pkg._dir}/bin/**",
         ],
         exclude = [
