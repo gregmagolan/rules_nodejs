@@ -42,6 +42,10 @@ function fileExists(filePath) {
 // This resolver mimics the TypeScript Path Mapping feature, which lets us resolve
 // modules based on a mapping of short names to paths.
 function resolveBazel(importee, importer, baseDir = process.cwd(), resolve = require.resolve, root = rootDir) {
+  // Hack to fix rxjs re-exports in Angular 7 ngfactory files
+  importee =
+      importee.replace('/node_modules/rxjs/internal/', '/node_modules/rxjs/_esm2015/internal/');
+
   function resolveInRootDir(importee) {
     var candidate = path.join(baseDir, root, importee);
     if (DEBUG) console.error(`Rollup: try to resolve '${importee}' at '${candidate}'`);
@@ -110,6 +114,15 @@ function resolveBazel(importee, importer, baseDir = process.cwd(), resolve = req
     // workspace import
     const userWorkspacePath = path.relative(workspaceName, importee);
     resolved = resolveInRootDir(userWorkspacePath.startsWith('..') ? importee : userWorkspacePath);
+  }
+
+  if (!resolved) {
+    // check for npm workspace import such as `npm/node_modules/foo/bar
+    // which is missing the `external` path prefix
+    const maybe = path.posix.join('external', importee);
+    if (!path.relative(nodeModulesRoot, maybe).startsWith('..')) {
+      resolved = resolveInRootDir(maybe);
+    }
   }
 
   if (DEBUG && !resolved)
