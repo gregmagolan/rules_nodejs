@@ -169,6 +169,8 @@ def _run_rollup(ctx, sources, config, output, map_output = None):
     else:
         args.add_all(["--output.dir", output.path])
         args.add_all(["--output.sourcemap"])
+    if not ctx.attr.treeshake_annotations:
+        args.add("--no-treeshake.annotations")
 
     # We will produce errors as needed. Anything else is spammy: a well-behaved
     # bazel rule prints nothing on success.
@@ -622,6 +624,10 @@ ROLLUP_ATTRS = {
     "deps": attr.label_list(
         doc = """Other rules that produce JavaScript outputs, such as `ts_library`.""",
         aspects = ROLLUP_DEPS_ASPECTS,
+    ),
+    "treeshake_annotations": attr.bool(
+        doc = """Tree shake pure call annotations""",
+        default = True,
     ),
     "_no_explore_html": attr.label(
         default = Label("@build_bazel_rules_nodejs//internal/rollup:no_explore.html"),
