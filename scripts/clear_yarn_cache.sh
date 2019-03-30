@@ -5,21 +5,14 @@ set -eu -o pipefail
 # -u: errors if an variable is referenced before being set
 # -o pipefail: causes a pipeline to produce a failure return code if any command errors
 
-readonly PACKAGES=${@:?"No package names specified"}
-
+readonly YARN_CACHE_ROOT=$(dirname $(yarn cache dir))
 readonly RULES_NODEJS_DIR=$(cd $(dirname "$0")/..; pwd)
-readonly PACKAGES_DIR="${RULES_NODEJS_DIR}/packages"
+source "${RULES_NODEJS_DIR}/scripts/packages.sh"
 
 echo_and_run() { echo "+ $@" ; "$@" ; }
 
-${RULES_NODEJS_DIR}/scripts/clear_yarn_cache.sh
+echo "yarn cache root: ${YARN_CACHE_ROOT}"
 
 for package in ${PACKAGES[@]} ; do
-  (
-    # Clean package
-    cd "${PACKAGES_DIR}/${package}"
-    printf "\n\nCleaning package ${package}\n"
-    echo_and_run bazel clean --expunge
-    echo_and_run rm -rf node_modules
-  )
+  echo_and_run rm -rf ${YARN_CACHE_ROOT}/*/npm-@bazel-${package}-*
 done

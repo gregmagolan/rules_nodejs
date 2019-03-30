@@ -12,6 +12,8 @@ readonly EXAMPLES_DIR="${RULES_NODEJS_DIR}/examples"
 
 echo_and_run() { echo "+ $@" ; "$@" ; }
 
+${RULES_NODEJS_DIR}/scripts/clear_yarn_cache.sh
+
 for example in ${EXAMPLES[@]} ; do
   (
     # Clean example

@@ -12,6 +12,8 @@ readonly E2E_DIR="${RULES_NODEJS_DIR}/e2e"
 
 echo_and_run() { echo "+ $@" ; "$@" ; }
 
+${RULES_NODEJS_DIR}/scripts/clear_yarn_cache.sh
+
 for e2eTest in ${E2E_TESTS[@]} ; do
   (
     # Clean e2e test
