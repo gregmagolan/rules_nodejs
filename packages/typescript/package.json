@@ -34,7 +34,6 @@
         "@types/source-map": "^0.5.1",
         "@types/tmp": "^0.0.33",
         "clang-format": "1.0.49",
-        "concurrently": "^3.5.1",
         "http-server": "^0.11.1",
         "protractor": "^5.2.0",
         "requirejs": "2.3.5",
@@ -46,13 +45,10 @@
     },
     "bazelWorkspaces": {
         "npm_bazel_typescript": {
-            "version": "0.0.0-PLACEHOLDER",
-            "compatVersion": "0.0.0-COMPAT_VERSION",
             "rootPath": "."
         }
     },
     "scripts": {
-        "test": "bazel test //...",
-        "// TODO": "port remaining e2e tests from rules_typescript"
+        "test": "bazel test //..."
     }
 }

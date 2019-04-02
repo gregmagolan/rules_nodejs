@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@npm_bazel_protractor//:index.bzl", "protractor_web_test_suite")
 load("@npm_bazel_typescript//:index.bzl", "ts_devserver", "ts_library")
 
 ts_devserver(
@@ -30,4 +31,16 @@ ts_library(
         "@npm//@types/node",
         "@npm//protractor",
     ],
+)
+
+protractor_web_test_suite(
+    name = "devserver_test",
+    data = [
+        "@npm//@bazel/protractor",
+        "@npm//protractor",
+        "@npm//zone.js",
+    ],
+    on_prepare = "//:protractor.on-prepare.js",
+    server = ":devserver",
+    deps = [":e2e"],
 )

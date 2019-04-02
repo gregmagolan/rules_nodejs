@@ -2,6 +2,6 @@
     "private": true,
     "devDependencies": {},
     "scripts": {
-        "test": "bazel build :all"
+        "test": "bazel build ..."
     }
 }

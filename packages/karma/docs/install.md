@@ -27,13 +27,14 @@ This installs the `io_bazel_rules_webtesting` repository, if you haven't install
 Finally, configure the rules_webtesting:
 
 ```python
-# Setup web testing, choose browsers we can test on
-load("@io_bazel_rules_webtesting//web:repositories.bzl", "browser_repositories", "web_test_repositories")
+# Setup web testing
+load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories")
 
 web_test_repositories()
-browser_repositories(
-    chromium = True,
-)
+
+load("@npm_bazel_karma//:browser_repositories.bzl", "browser_repositories")
+
+browser_repositories()
 ```
 
 ## Installing with self-managed dependencies

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pinned browser versions tested against in https://github.com/bazelbuild/rules_typescript CI.
+"""Pinned browser versions tested against in https://github.com/bazelbuild/rules_nodejs CI.
 """
 
 load("@io_bazel_rules_webtesting//web/internal:platform_http_file.bzl", "platform_http_file")

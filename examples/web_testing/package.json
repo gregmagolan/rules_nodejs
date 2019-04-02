@@ -1,4 +1,5 @@
 {
+  "private": true,
   "devDependencies": {
     "@bazel/karma": "bazel://@npm_bazel_karma//:npm_package",
     "@bazel/typescript": "bazel://@npm_bazel_typescript//:npm_package",

@@ -1,5 +1,5 @@
 {
-  "description": "runtime dependencies for program example",
+  "private": true,
   "devDependencies": {
     "jasmine": "~2.8.0"
   },

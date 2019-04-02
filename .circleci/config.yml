@@ -219,6 +219,19 @@ jobs:
           paths:
             - ./rules_nodejs/dist/npm_bazel_karma
 
+  build_protractor_package:
+    <<: *job_defaults
+    steps:
+      - *attach_workspace
+      - *init_environment
+      - *init_bazel
+      - *hide_node_and_yarn_local_binaries
+      - run: ./scripts/build_packages.sh protractor
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - ./rules_nodejs/dist/npm_bazel_protractor
+
   build_jasmine_package:
     <<: *job_defaults
     steps:
@@ -327,6 +340,9 @@ workflows:
           requires:
           # karma package depends on typescript package
           - build_typescript_package
+      - build_protractor_package:
+          requires:
+          - setup
       - build_labs_package:
           requires:
           - setup
@@ -343,6 +359,7 @@ workflows:
           - build_jasmine_package
           - build_labs_package
           - build_karma_package
+          - build_protractor_package
       - test_e2e_legacy:
           requires:
           - build_release
@@ -353,3 +370,4 @@ workflows:
           - build_jasmine_package
           - build_labs_package
           - build_karma_package
+          - build_protractor_package

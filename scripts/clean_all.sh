@@ -12,7 +12,6 @@ echo_and_run() { echo "+ $@" ; "$@" ; }
 
 echo_and_run rm -rf ./dist
 echo_and_run rm -rf ./node_modules
-echo_and_run rm -rf ./examples/program/node_modules
 echo_and_run rm -rf ./internal/npm_install/test/package/node_modules
 
 echo_and_run bazel clean --expunge

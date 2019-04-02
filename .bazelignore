@@ -1,5 +1,4 @@
 node_modules
-examples/program/node_modules
 internal/npm_install/test/package/node_modules
 dist
 # Each e2e test is a nested workspace

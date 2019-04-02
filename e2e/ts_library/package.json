@@ -1,4 +1,5 @@
 {
+  "private": true,
   "//": "When setting bazelOpts { tsickle: true }, you must also add a devDependency on the tsickle npm package",
   "dependencies": {
     "@bazel/jasmine": "bazel://@npm_bazel_jasmine//:npm_package",

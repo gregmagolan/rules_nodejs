@@ -208,8 +208,6 @@ function processBazelWorkspaces(pkg, bazelWorkspaces) {
  * all workspaces to be installed to `bazelWorkspaces` map
  */
 function processBazelWorkspace(bwName, bwDetails, pkg, bazelWorkspaces) {
-  let alreadySetup = bazelWorkspaces[bwName];
-
   // Ensure bazel workspace object has required rootPath attribute
   if (!bwDetails.rootPath) {
     console.error(
@@ -218,58 +216,19 @@ function processBazelWorkspace(bwName, bwDetails, pkg, bazelWorkspaces) {
     process.exit(1);
   }
 
-  // Trim development versions such as '0.22.0-26-g9088e46' down to their semver
-  const bwVersion = bwDetails.version ? bwDetails.version.split('-')[0] : undefined;
-  const bwDevVersion = bwDetails.version ? bwDetails.version != bwVersion : false;
-
-  // If no compatVersion is specified then it is equal to the version
-  if (!bwDetails.compatVersion) {
-    bwDetails.compatVersion = bwDetails.version
-  }
-
-  // If this workspace has been previously installed than check for compatibility
+  // Fail if this workspace has been previously installed
+  const alreadySetup = bazelWorkspaces[bwName];
   if (alreadySetup) {
-    if (bwVersion && alreadySetup.version) {
-      // Bazel workspace setup is versioned to allow for multiple
-      // setup requests from different npm packages as long as the versions are
-      // compatible
-      if (cmpVersions(bwVersion, alreadySetup.compatVersion) < 0 ||
-          cmpVersions(bwDetails.compatVersion, alreadySetup.compatVersion) !== 0) {
-        console.error(
-            `Could not setup Bazel workspace ${bwName}@${bwVersion} ` +
-            `requested by npm package ${pkg._dir}@${pkg.version}. Incompatible Bazel workspace ` +
-            `${bwName}@${alreadySetup.version} already setup by ` +
-            `${alreadySetup.sources.join(', ')}.`);
-        process.exit(1);
-      }
-      if (cmpVersions(bwVersion, alreadySetup.version) < 0 ||
-          (cmpVersions(bwVersion, alreadySetup.version) == 0 && !bwDevVersion)) {
-        // No reason to update to an older compatible version or an equal non-dev-version
-        alreadySetup.sources.push(`${pkg._dir}@${pkg.version}`);
-        return;
-      }
-    } else {
-      // Non-version bazel workspace setup requests can only be done once
-      console.error(
-          `Could not setup Bazel workspace ${bwName} requested by npm ` +
-          `package ${pkg._dir}@${pkg.version}. No version metadata to check compatibility ` +
-          `against Bazel workspace setup by ${alreadySetup.sources.join(', ')}.`);
-      process.exit(1);
-    }
+    console.error(
+        `Could not setup Bazel workspace ${bwName} requested by npm ` +
+        `package ${pkg._dir}@${pkg.version}. Already setup by ${alreadySetup.source}.`);
+    process.exit(1);
   }
 
   // Keep track of which npm package setup this bazel workspace for later use
-  if (!alreadySetup) {
-    alreadySetup = bazelWorkspaces[bwName] = {
-      sources: [],
-    }
-  }
-  alreadySetup.version = bwVersion;
-  alreadySetup.devVersion = bwDevVersion;
-  alreadySetup.compatVersion = bwDetails.compatVersion;
-  alreadySetup.rootPath = bwDetails.rootPath;
-  alreadySetup.sources.push(`${pkg._dir}@${pkg.version}`);
-  alreadySetup.pkg = pkg;
+  bazelWorkspaces[bwName] = {
+    source: `${pkg._dir}@${pkg.version}`,
+  };
 }
 
 /**

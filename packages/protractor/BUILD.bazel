@@ -22,40 +22,8 @@ package(default_visibility = ["//visibility:public"])
 
 # Exports to be consumed for generating skydoc.
 exports_files([
-    "karma_web_test.bzl",
-    "ts_web_test.bzl",
-    "web_test.bzl",
+    "protractor_web_test.bzl",
 ])
-
-ts_library(
-    name = "bazel_karma",
-    srcs = glob(["*.ts"]),
-    module_name = "@bazel/karma",
-    tsconfig = ":tsconfig.json",
-    deps = [
-        "@npm//@types/node",
-        "@npm//tmp",
-    ],
-)
-
-nodejs_binary(
-    name = "karma_bin",
-    data = [
-        ":bazel_karma",
-        "@npm//jasmine-core",
-        "@npm//karma",
-        "@npm//karma-chrome-launcher",
-        "@npm//karma-firefox-launcher",
-        "@npm//karma-jasmine",
-        "@npm//karma-requirejs",
-        "@npm//karma-sauce-launcher",
-        "@npm//karma-sourcemap-loader",
-        "@npm//requirejs",
-        "@npm//tmp",
-    ],
-    entry_point = "karma/bin/karma",
-    install_source_map_support = False,
-)
 
 genrule(
     name = "copy_browser_repositories",
@@ -89,19 +57,13 @@ npm_package(
     srcs = [
         "BUILD.bazel",
         "WORKSPACE",
-        "defs.bzl",
         "index.bzl",
-        "karma.conf.js",
-        "karma.js",
-        "karma_web_test.bzl",
         "package.bzl",
         "package.json",
-        "ts_web_test.bzl",
-        "web_test.bzl",
+        "protractor_web_test.bzl",
     ],
     replacements = COMMON_REPLACEMENTS,
     deps = [
-        ":bazel_karma",
         ":copy_browser_repositories",
         ":copy_LICENSE",
         ":generate_README",
@@ -109,4 +71,4 @@ npm_package(
 )
 
 # END-INTERNAL
-exports_files(["karma.conf.js"])
+exports_files(["protractor.conf.js"])

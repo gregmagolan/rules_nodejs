@@ -1,5 +1,6 @@
 load("@build_bazel_rules_nodejs//:defs.bzl", "http_server", "rollup_bundle")
 load("@build_bazel_rules_nodejs//internal/web_package:web_package.bzl", "web_package")
+load("@npm_bazel_protractor//:index.bzl", "protractor_web_test_suite")
 load("@npm_bazel_typescript//:index.bzl", "ts_config", "ts_devserver", "ts_library")
 
 ts_library(
@@ -10,7 +11,6 @@ ts_library(
 ts_devserver(
     name = "devserver",
     index_html = "index.html",
-    port = 8080,
     # We'll collect all the devmode JS sources from these TypeScript libraries
     deps = [":app"],
 )
@@ -35,11 +35,7 @@ web_package(
 http_server(
     name = "prodserver",
     data = [":package"],
-    templated_args = [
-        "package",
-        "-p",
-        "8080",
-    ],
+    templated_args = ["package"],
 )
 
 ts_config(
@@ -58,4 +54,28 @@ ts_library(
         "@npm//@types/node",
         "@npm//protractor",
     ],
+)
+
+protractor_web_test_suite(
+    name = "prodserver_test",
+    data = [
+        "@npm//@bazel/protractor",
+        "@npm//protractor",
+        "@npm//zone.js",
+    ],
+    on_prepare = ":protractor.on-prepare.js",
+    server = ":prodserver",
+    deps = [":e2e"],
+)
+
+protractor_web_test_suite(
+    name = "devserver_test",
+    data = [
+        "@npm//@bazel/protractor",
+        "@npm//protractor",
+        "@npm//zone.js",
+    ],
+    on_prepare = ":protractor.on-prepare.js",
+    server = ":devserver",
+    deps = [":e2e"],
 )

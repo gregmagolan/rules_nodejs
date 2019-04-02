@@ -13,21 +13,15 @@
 # limitations under the License.
 
 """ Public API surface is re-exported here.
-
-Users should not load files under "/internal"
 """
 
-load("//internal/devserver:ts_devserver.bzl", _ts_devserver = "ts_devserver_macro")
-load("//internal/protobufjs:ts_proto_library.bzl", _ts_proto_library = "ts_proto_library")
-load("//internal:build_defs.bzl", _ts_library = "ts_library_macro")
-load("//internal:ts_config.bzl", _ts_config = "ts_config")
-load("//internal:ts_repositories.bzl", _ts_setup_workspace = "ts_setup_workspace")
+load(
+    ":protractor_web_test.bzl",
+    _protractor_web_test = "protractor_web_test",
+    _protractor_web_test_suite = "protractor_web_test_suite",
+)
 
-ts_setup_workspace = _ts_setup_workspace
-ts_library = _ts_library
-ts_config = _ts_config
-ts_devserver = _ts_devserver
-
-ts_proto_library = _ts_proto_library
+protractor_web_test = _protractor_web_test
+protractor_web_test_suite = _protractor_web_test_suite
 # DO NOT ADD MORE rules here unless they appear in the generated docsite.
-# Run bazel build :generate_README to re-generate the docsite.
+# Run yarn skydoc to re-generate the docsite.

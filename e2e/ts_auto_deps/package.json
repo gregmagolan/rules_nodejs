@@ -1,4 +1,5 @@
 {
+  "private": true,
   "dependencies": {
     "@bazel/typescript": "bazel://@npm_bazel_typescript//:npm_package",
     "typescript": "2.9.2"

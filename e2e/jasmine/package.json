@@ -1,5 +1,5 @@
 {
-  "name": "e2e-jasmine",
+  "private": true,
   "dependencies": {
     "@bazel/jasmine": "bazel://@npm_bazel_jasmine//:npm_package",
     "zone.js": "0.8.29"

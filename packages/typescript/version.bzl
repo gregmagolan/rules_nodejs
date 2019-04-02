@@ -12,45 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Package file which defines npm_bazel_typescript version in skylark
+"""Legacy function that is now DEPRECATED.
 """
 
-load("@build_bazel_rules_nodejs//internal/common:check_version.bzl", "check_version")
-
-VERSION = "0.25.1"
-
-# This version is the minimum version that is API compatible with this version
-# of rules_typescript. This version should be updated to equal VERSION for
-# releases with breaking changes and/or new features.
-COMPAT_VERSION = "0.25.0"
-
 def check_rules_typescript_version(version_string):
+    """Legacy function that is now DEPRECATED.
     """
-    Verify that a compatible npm_bazel_typescript is loaded a WORKSPACE.
-
-    Where COMPAT_VERSION and VERSION come from the npm_bazel_typescript that
-    is loaded in a WORKSPACE, this function will check:
-
-    VERSION >= version_string >= COMPAT_VERSION
-
-    This should be called from the `WORKSPACE` file so that the build fails as
-    early as possible. For example:
-
-    ```
-    # in WORKSPACE:
-    load("@npm_bazel_typescript//:index.bzl", "check_rules_typescript_version")
-    check_rules_typescript_version(version_string = "0.22.0")
-    ```
-
-    Args:
-      version_string: A version string to check for compatibility with the loaded version
-                      of npm_bazel_typescript. The version check performed is
-                      `VERSION >= version_string >= COMPAT_VERSION` where VERSION and COMPAT_VERSION
-                      come from the loaded version of npm_bazel_typescript.
-    """
-    if not check_version(VERSION, version_string) or not check_version(version_string, COMPAT_VERSION):
-        fail("\nLoaded npm_bazel_typescript version {} with mimimum compat version of {} is not compatible with checked version {}!\n\n".format(
-            VERSION,
-            COMPAT_VERSION,
-            version_string,
-        ))
+    print("""
+        WARNING: check_rules_typescript_version() provided by @npm_bazel_typescript//:version.bzl
+        is deprecated and will be removed in the future.
+        
+        Bazel rules for nodejs published as npm packages such as @bazel/typescript have a single
+        version policy and should never be fetched as transitive deps through npm. The version of
+        @bazel/typescript should be explicitely set in your package.json file. If bazel rule npm
+        packages depend on each other this should be expressed as a peerDependency in the package's
+        package.json.
+        """)

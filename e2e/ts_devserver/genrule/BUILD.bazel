@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@npm_bazel_protractor//:index.bzl", "protractor_web_test_suite")
 load("@npm_bazel_typescript//:index.bzl", "ts_devserver", "ts_library")
 
 ts_library(
@@ -66,4 +67,16 @@ genrule(
     name = "show-host",
     outs = ["test/show-host.js"],
     cmd = "echo 'var el = document.createElement(\"div\"); el.innerText = location.host; el.className = \"ts3\"; document.body.appendChild(el);' > $@",
+)
+
+protractor_web_test_suite(
+    name = "devserver_test",
+    data = [
+        "@npm//@bazel/protractor",
+        "@npm//protractor",
+        "@npm//zone.js",
+    ],
+    on_prepare = "//:protractor.on-prepare.js",
+    server = ":devserver",
+    deps = [":e2e"],
 )
