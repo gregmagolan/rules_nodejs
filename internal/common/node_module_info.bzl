@@ -19,6 +19,7 @@ NodeModuleInfo = provider(
     doc = "This provider contains information about npm dependencies installed with yarn_install and npm_install rules",
     fields = {
         "transitive": "If true this dependency has transitive npm dependencies but is not and npm package itself",
+        "srcs": "List of source files that are npm dependencies",
         "workspace": "The workspace name that the npm dependencies are provided from",
     },
 )
@@ -26,15 +27,27 @@ NodeModuleInfo = provider(
 def _collect_node_modules_aspect_impl(target, ctx):
     nm_wksp = None
 
-    if hasattr(ctx.rule.attr, "tags") and "NODE_MODULE_MARKER" in ctx.rule.attr.tags:
+    if hasattr(ctx.rule.attr, "tags") and hasattr(ctx.rule.files, "srcs") and "NODE_MODULE_MARKER" in ctx.rule.attr.tags:
         nm_wksp = target.label.workspace_root.split("/")[1] if target.label.workspace_root else ctx.workspace_name
-        return [NodeModuleInfo(workspace = nm_wksp, transitive = False)]
+        return [NodeModuleInfo(
+          workspace = nm_wksp,
+          srcs = ctx.rule.files.srcs,
+          transitive = False)]
 
     # This ensures that NodeModuleInfo about transitive dependencies is tracked.
     if hasattr(ctx.rule.attr, "deps"):
+        srcs = []
         for dep in ctx.rule.attr.deps:
             if NodeModuleInfo in dep:
-                return [NodeModuleInfo(workspace = dep[NodeModuleInfo].workspace, transitive = True)]
+                if nm_wksp and dep[NodeModuleInfo].workspace != nm_wksp:
+                    fail("All npm dependencies need to come from a single workspace. Found '%s' and '%s'." % (nm_wksp, dep[NodeModuleInfo].workspace))
+                nm_wksp = dep[NodeModuleInfo].workspace
+                srcs += dep[NodeModuleInfo].srcs
+        if srcs:
+            return [NodeModuleInfo(
+              workspace = nm_wksp,
+              srcs = srcs,
+              transitive = True)]
 
     return []
 
