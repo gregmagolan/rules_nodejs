@@ -189,7 +189,7 @@ const config = {
       // with the amd plugin.
       include: /\.ngfactory\.js$/i,
     }),
-    commonjs(), {
+    commonjs({ignoreGlobal: true}), {
       name: 'notResolved',
       resolveId: notResolved,
     },
