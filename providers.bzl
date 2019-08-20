@@ -10,14 +10,6 @@ You can think of a provider as a message bus.
 A rule "publishes" a message as an instance of the provider, and some other rule
 subscribes to these by having a (possibly transitive) dependency on the publisher.
 
-## Sourcemaps
-
-Sourcemap files should always accompany JS files that have been transformed from
-the user's authored files.
-Sourcemaps may be inline in the JS files. For the `named` provider, we assume
-this is the case, as it makes it much easier to serve the sourcemaps in devmode.
-They may also be in separate files ending with `.map`.
-
 ## Debugging
 
 Debug output is considered orthogonal to these providers.
@@ -31,9 +23,22 @@ differing 'debug' attributes.
 """
 
 JSModuleInfo = provider(
+    doc = """TODO""",
     fields = {
         "module_format": "a string like [amd, cjs, esm, iife, umd]",
-        "sourcemaps": "(optional) depset of sourcemap files",
+        "sources": "depset of JavaScript files",
+    },
+)
+
+JSTransitiveModuleInfo = provider(
+    doc = """Same as JSModuleInfo but also includes transitive files.
+
+This is typically provided by an aspect such as sources_apsect.
+
+module_format will only be set to "mixed" if not all transitive deps have the same module_format.
+""",
+    fields = {
+        "module_format": "a string like cjs, umd",
         "sources": "depset of JavaScript files",
     },
 )
@@ -67,7 +72,16 @@ These outputs should be named "foo.umd.js"
 Historical note: this was the typescript.es5_sources output.
 """,
     fields = {
-        "sourcemaps": "(optional) depset of sourcemap files",
+        "sources": "depset of JavaScript files",
+    },
+)
+
+JSTransitiveNamedModuleInfo = provider(
+    doc = """Same as JSNamedModuleInfo but also includes transitive files.
+
+This is typically provided by an aspect such as sources_apsect.
+""",
+    fields = {
         "sources": "depset of JavaScript files",
     },
 )
@@ -81,7 +95,16 @@ TODO: should we require that?
 
 Historical note: this was the typescript.es6_sources output""",
     fields = {
-        "sourcemaps": "(optional) depset of sourcemap files",
+        "sources": "depset of JavaScript files",
+    },
+)
+
+JSTransitiveEcmaScriptModuleInfo = provider(
+    doc = """Same as JSEcmaScriptModuleInfo but also includes transitive files.
+
+This is typically provided by an aspect such as sources_apsect.
+""",
+    fields = {
         "sources": "depset of JavaScript files",
     },
 )

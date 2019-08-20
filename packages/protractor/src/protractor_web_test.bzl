@@ -14,7 +14,9 @@
 "Run end-to-end tests with Protractor"
 
 load("@build_bazel_rules_nodejs//:defs.bzl", "nodejs_binary")
+load("@build_bazel_rules_nodejs//:providers.bzl", "JSModuleInfo", "JSTransitiveModuleInfo", "JSTransitiveNamedModuleInfo")
 load("@build_bazel_rules_nodejs//internal/common:expand_into_runfiles.bzl", "expand_path_into_runfiles")
+load("@build_bazel_rules_nodejs//internal/common:node_module_info.bzl", "NodeModuleInfo")
 load("@build_bazel_rules_nodejs//internal/common:sources_aspect.bzl", "sources_aspect")
 load("@io_bazel_rules_webtesting//web:web.bzl", "web_test_suite")
 load("@io_bazel_rules_webtesting//web/internal:constants.bzl", "DEFAULT_WRAPPED_TEST_TAGS")
@@ -35,12 +37,25 @@ def _protractor_web_test_impl(ctx):
         sibling = ctx.outputs.executable,
     )
 
-    files = depset(ctx.files.srcs)
-    for d in ctx.attr.deps:
-        if hasattr(d, "node_sources"):
-            files = depset(transitive = [files, d.node_sources])
-        elif hasattr(d, "files"):
-            files = depset(transitive = [files, d.files])
+    files_depsets = [depset(ctx.files.srcs)]
+    for dep in ctx.attr.deps:
+        if JSTransitiveNamedModuleInfo in dep:
+            files_depsets.append(dep[JSTransitiveNamedModuleInfo].sources)
+        if not JSTransitiveNamedModuleInfo in dep and not NodeModuleInfo in dep and hasattr(dep, "files"):
+            # These are javascript files provided by DefaultInfo from a direct
+            # dep that has no JSTransitiveNamedModuleInfo provider or NodeModuleInfo
+            # provider (not an npm dep). These files must be in named AMD or named
+            # UMD format.
+            files_depsets.append(dep.files)
+    files = depset(transitive = files_depsets)
+
+    # Also include files from npm fine grained deps as inputs.
+    # These deps are identified by the NodeModuleInfo provider.
+    node_modules_depsets = []
+    for dep in ctx.attr.deps:
+        if NodeModuleInfo in dep:
+            node_modules_depsets.append(dep[NodeModuleInfo].transitive_sources)
+    node_modules = depset(transitive = node_modules_depsets)
 
     specs = [
         expand_path_into_runfiles(ctx, f.short_path)
@@ -48,24 +63,28 @@ def _protractor_web_test_impl(ctx):
     ]
 
     configuration_sources = []
-    if ctx.file.configuration:
-        configuration_sources = [ctx.file.configuration]
-    if hasattr(ctx.attr.configuration, "node_sources"):
-        configuration_sources = ctx.attr.configuration.node_sources.to_list()
-
-    configuration_file = ctx.file.configuration
-    if hasattr(ctx.attr.configuration, "typescript"):
-        configuration_file = ctx.attr.configuration.typescript.es5_sources.to_list()[0]
+    configuration_file = None
+    if ctx.attr.configuration:
+        if JSTransitiveModuleInfo in ctx.attr.configuration:
+            configuration_sources = ctx.attr.configuration[JSTransitiveModuleInfo].sources.to_list()
+        else:
+            configuration_sources = [ctx.file.configuration]
+        if JSModuleInfo in ctx.attr.configuration:
+            configuration_file = ctx.attr.configuration[JSModuleInfo].sources.to_list()[0]
+        else:
+            configuration_file = ctx.file.configuration
 
     on_prepare_sources = []
-    if ctx.file.on_prepare:
-        on_prepare_sources = [ctx.file.on_prepare]
-    if hasattr(ctx.attr.on_prepare, "node_sources"):
-        on_prepare_sources = ctx.attr.on_prepare.node_sources.to_list()
-
-    on_prepare_file = ctx.file.on_prepare
-    if hasattr(ctx.attr.on_prepare, "typescript"):
-        on_prepare_file = ctx.attr.on_prepare.typescript.es5_sources.to_list()[0]
+    on_prepare_file = None
+    if ctx.attr.on_prepare:
+        if JSTransitiveModuleInfo in ctx.attr.on_prepare:
+            on_prepare_sources = ctx.attr.on_prepare[JSTransitiveModuleInfo].sources.to_list()
+        else:
+            on_prepare_sources = [ctx.file.on_prepare]
+        if JSModuleInfo in ctx.attr.on_prepare:
+            on_prepare_file = ctx.attr.on_prepare[JSModuleInfo].sources.to_list()[0]
+        else:
+            on_prepare_file = ctx.file.on_prepare
 
     ctx.actions.expand_template(
         output = configuration,
@@ -119,7 +138,7 @@ $PROTRACTOR $CONF
         files = depset([ctx.outputs.executable]),
         runfiles = ctx.runfiles(
             files = runfiles,
-            transitive_files = files,
+            transitive_files = depset(transitive = [files, node_modules]),
             # Propagate protractor_bin and its runfiles
             collect_data = True,
             collect_default = True,

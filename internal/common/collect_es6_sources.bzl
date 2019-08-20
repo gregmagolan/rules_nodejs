@@ -18,6 +18,11 @@ These are expected to be used by the production toolchain, such as bundlers.
 The tree will be flattened, such that all the es6 files are under a single tree.
 """
 
+load("@build_bazel_rules_nodejs//:providers.bzl", "JSTransitiveEcmaScriptModuleInfo")
+
+# TODO(spike): logic that collects sources should be moved to rollup_bundle & re-rooting
+# should be a utility function. .closure.js naming will eventually get replaced by .mjs which
+# may mean we don't have to re-root at all?
 def collect_es6_sources(ctx):
     """Returns a file tree containing only production files.
 
@@ -36,9 +41,10 @@ def collect_es6_sources(ctx):
     # be collected if the file is a js file.
     if hasattr(ctx.attr, "entry_point"):
         non_rerooted_files += [s for s in ctx.files.entry_point if s.extension == "js"]
+
     for dep in ctx.attr.deps:
-        if hasattr(dep, "typescript"):
-            non_rerooted_files += dep.typescript.transitive_es6_sources.to_list()
+        if JSTransitiveEcmaScriptModuleInfo in dep:
+            non_rerooted_files += dep[JSTransitiveEcmaScriptModuleInfo].sources.to_list()
 
     rerooted_files = []
     for file in non_rerooted_files:

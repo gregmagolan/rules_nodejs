@@ -12,48 +12,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Aspect to collect es5 js sources and scripts from deps.
+"""Aspect to collect js sources from deps.
 """
 
-load("@build_bazel_rules_nodejs//internal/common:node_module_info.bzl", "NodeModuleInfo", "NodeModuleSources")
+load("@build_bazel_rules_nodejs//:providers.bzl", "JSEcmaScriptModuleInfo", "JSModuleInfo", "JSNamedModuleInfo", "JSTransitiveEcmaScriptModuleInfo", "JSTransitiveModuleInfo", "JSTransitiveNamedModuleInfo")
+load("@build_bazel_rules_nodejs//internal/common:node_module_info.bzl", "NodeModuleInfo")
 
 def _sources_aspect_impl(target, ctx):
-    # TODO(kyliau): node_sources here is a misnomer because it implies that
-    # the sources have got something to do with node modules. In fact,
-    # node_sources collects es5 output from typescript and "javascript-like"
-    # targets that are *not* node modules. This name is kept as-is to maintain
-    # compatibility with existing rules but should be renamed and cleaned up.
-    node_sources = depset()
+    module_format = None
+    module_sources = depset()
+    if JSModuleInfo in target:
+        module_format = target[JSModuleInfo].module_format
+        module_sources = depset(transitive = [target[JSModuleInfo].sources])
 
-    # dev_scripts is a collection of "scripts" from "node-module-like" targets
-    # such as `node_module_library`
-    dev_scripts = depset()
+    named_sources = depset()
+    if JSNamedModuleInfo in target:
+        named_sources = depset(transitive = [target[JSNamedModuleInfo].sources])
 
-    # Note layering: until we have JS interop providers, this needs to know how to
-    # get TypeScript outputs.
-    if hasattr(target, "typescript"):
-        node_sources = depset(transitive = [node_sources, target.typescript.es5_sources])
-    elif hasattr(target, "files") and not NodeModuleInfo in target:
-        # Sources from npm fine grained deps should not be included
-        node_sources = depset(
-            [f for f in target.files.to_list() if f.path.endswith(".js")],
-            transitive = [node_sources],
-        )
-
-    if NodeModuleSources in target:
-        dev_scripts = depset(target[NodeModuleSources].scripts)
+    esm_sources = depset()
+    if JSEcmaScriptModuleInfo in target:
+        esm_sources = depset(transitive = [target[JSEcmaScriptModuleInfo].sources])
 
     if hasattr(ctx.rule.attr, "deps"):
         for dep in ctx.rule.attr.deps:
-            if hasattr(dep, "node_sources"):
-                node_sources = depset(transitive = [node_sources, dep.node_sources])
-            if hasattr(dep, "dev_scripts"):
-                dev_scripts = depset(transitive = [dev_scripts, dep.dev_scripts])
+            if JSTransitiveModuleInfo in dep:
+                if module_format != dep[JSTransitiveModuleInfo].module_format:
+                    module_format = "mixed"
+                module_sources = depset(transitive = [module_sources, dep[JSTransitiveModuleInfo].sources])
+            if JSTransitiveNamedModuleInfo in dep:
+                named_sources = depset(transitive = [named_sources, dep[JSTransitiveNamedModuleInfo].sources])
+            if JSTransitiveEcmaScriptModuleInfo in dep:
+                esm_sources = depset(transitive = [esm_sources, dep[JSTransitiveEcmaScriptModuleInfo].sources])
 
-    return struct(
-        node_sources = node_sources,
-        dev_scripts = dev_scripts,
-    )
+    providers = []
+
+    # provider transitive sources JS providers
+    if module_sources:
+        providers.extend([JSTransitiveModuleInfo(
+            module_format = module_format,
+            sources = module_sources,
+        )])
+
+    if named_sources:
+        providers.extend([JSTransitiveNamedModuleInfo(
+            sources = named_sources,
+        )])
+
+    if esm_sources:
+        providers.extend([JSTransitiveEcmaScriptModuleInfo(
+            sources = esm_sources,
+        )])
+
+    # provide NodeModuleInfo if it is not already provided there are NodeModuleInfo deps
+    if not NodeModuleInfo in target:
+        transitive_sources = depset()
+        nm_wksp = None
+        if hasattr(ctx.rule.attr, "deps"):
+            for dep in ctx.rule.attr.deps:
+                if NodeModuleInfo in dep:
+                    if nm_wksp and dep[NodeModuleInfo].workspace != nm_wksp:
+                        fail("All npm dependencies need to come from a single workspace. Found '%s' and '%s'." % (nm_wksp, dep[NodeModuleInfo].workspace))
+                    nm_wksp = dep[NodeModuleInfo].workspace
+                    transitive_sources = depset(transitive = [dep[NodeModuleInfo].transitive_sources, transitive_sources])
+            if nm_wksp:
+                providers.extend([NodeModuleInfo(sources = depset(), transitive_sources = transitive_sources, workspace = nm_wksp)])
+
+    return providers
 
 sources_aspect = aspect(
     _sources_aspect_impl,

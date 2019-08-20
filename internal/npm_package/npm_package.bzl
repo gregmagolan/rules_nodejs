@@ -6,6 +6,7 @@ If all users of your library code use Bazel, they should just add your library
 to the `deps` of one of their targets.
 """
 
+load("@build_bazel_rules_nodejs//:providers.bzl", "DeclarationInfo", "JSTransitiveModuleInfo")
 load("//internal/common:sources_aspect.bzl", "sources_aspect")
 
 # Takes a depset of files and returns a corresponding list of file paths without any files
@@ -95,30 +96,27 @@ def create_package(ctx, deps_sources, nested_packages):
     return package_dir
 
 def _npm_package(ctx):
-    deps_sources = depset()
+    sources_depsets = []
+
     for dep in ctx.attr.deps:
-        transitive = [
-            deps_sources,
-            # Collect whatever is in the "data"
-            dep.data_runfiles.files,
-        ]
+        # Collect whatever is in the "data"
+        sources_depsets.append(dep.data_runfiles.files)
 
-        if hasattr(dep, "node_sources"):
-            # For JavaScript-producing rules, gather up the devmode Node.js sources
-            transitive.append(dep.node_sources)
-        else:
-            # For standalone Output File Targets (aspects not invoked on these)
-            transitive.append(dep.files)
+        # Only collect DefaultInfo files (not transitive)
+        sources_depsets.append(dep.files)
 
-        # ts_library doesn't include .d.ts outputs in the runfiles
-        # see comment in rules_typescript/internal/common/compilation.bzl
-        if hasattr(dep, "typescript"):
-            transitive.append(dep.typescript.transitive_declarations)
+        # All direct & transitive JavaScript-producing deps (gathered up by sources_aspect)
+        if JSTransitiveModuleInfo in dep:
+            sources_depsets.append(dep[JSTransitiveModuleInfo].sources)
 
-        deps_sources = depset(transitive = transitive)
+        # Include all transitive declerations
+        if DeclarationInfo in dep:
+            sources_depsets.append(dep[DeclarationInfo].transitive_declarations)
+
+    sources = depset(transitive = sources_depsets)
 
     # Note: to_list() should be called once per rule!
-    package_dir = create_package(ctx, deps_sources.to_list(), ctx.files.packages)
+    package_dir = create_package(ctx, sources.to_list(), ctx.files.packages)
 
     return [DefaultInfo(
         files = depset([package_dir]),

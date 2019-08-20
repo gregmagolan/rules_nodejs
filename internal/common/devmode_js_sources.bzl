@@ -17,23 +17,31 @@
 Outputs a manifest file with the sources listed.
 """
 
+load("@build_bazel_rules_nodejs//:providers.bzl", "JSTransitiveNamedModuleInfo")
 load(":expand_into_runfiles.bzl", "expand_path_into_runfiles")
 load(":sources_aspect.bzl", "sources_aspect")
 
 def _devmode_js_sources_impl(ctx):
-    files = depset()
-
-    for d in ctx.attr.deps:
-        if hasattr(d, "node_sources"):
-            files = depset(transitive = [files, d.node_sources])
-        elif hasattr(d, "files"):
-            files = depset(transitive = [files, d.files])
+    # Since we apply the sources_aspect to our deps below, we can iterate through
+    # the deps and fetch all transitive named js files from the JSTransitiveNamedModuleInfo
+    # provider returned from the apsect.
+    sources_depsets = []
+    for dep in ctx.attr.deps:
+        if JSTransitiveNamedModuleInfo in dep:
+            sources_depsets.append(dep[JSTransitiveNamedModuleInfo].sources)
+        if hasattr(dep, "files"):
+            sources_depsets.append(dep.files)
+    sources = depset(transitive = sources_depsets)
 
     ctx.actions.write(ctx.outputs.manifest, "".join([
         expand_path_into_runfiles(ctx, f.path) + "\n"
-        for f in files.to_list()
+        for f in sources.to_list()
     ]))
-    return [DefaultInfo(files = files)]
+
+    return [DefaultInfo(
+        files = sources,
+        runfiles = ctx.runfiles(transitive_files = sources),
+    )]
 
 devmode_js_sources = rule(
     implementation = _devmode_js_sources_impl,
