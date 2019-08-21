@@ -120,7 +120,7 @@ install_bazel_dependencies()
 # TODO(gregmagolan): land JS provider changes in rules_typescript and switch upstream
 git_repository(
     name = "build_bazel_rules_typescript",
-    commit = "125d40b070cdd6fc2d465115976b8b67f5afa6c0",
+    commit = "6140fd17ab58ef08599f80d3aac4eb0a8b6263a6",
     remote = "http://github.com/gregmagolan/rules_typescript.git",
 )
 
