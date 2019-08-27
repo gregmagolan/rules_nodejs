@@ -113,11 +113,14 @@ install_bazel_dependencies()
 
 # We use git_repository since Renovate knows how to update it.
 # With http_archive it only sees releases/download/*.tar.gz urls
-# TODO(gregmagolan): land JS provider changes in rules_typescript and switch upstream
 git_repository(
     name = "build_bazel_rules_typescript",
-    commit = "6140fd17ab58ef08599f80d3aac4eb0a8b6263a6",
-    remote = "http://github.com/gregmagolan/rules_typescript.git",
+    commit = "d28150aa8d69604d33329ca1238f801f6599f415",
+    patch_args = ["-p1"],
+    # TODO(gregmagolan): land JS provider changes in rules_typescript and switch upstream
+    # This patch currently generated from https://github.com/alexeagle/rules_typescript/tree/js_providers
+    patches = ["@build_bazel_rules_nodejs//:rules_typescript_providers.patch"],
+    remote = "http://github.com/bazelbuild/rules_typescript.git",
 )
 
 # We have a source dependency on build_bazel_rules_typescript

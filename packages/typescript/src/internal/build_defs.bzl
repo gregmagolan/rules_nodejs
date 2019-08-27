@@ -19,7 +19,7 @@ load("@build_bazel_rules_nodejs//internal/common:sources_aspect.bzl", "sources_a
 
 # pylint: disable=unused-argument
 # pylint: disable=missing-docstring
-load("@build_bazel_rules_typescript//internal:common/compilation.bzl", "COMMON_ATTRIBUTES", "DEPS_ASPECTS", "compile_ts")
+load("@build_bazel_rules_typescript//internal:common/compilation.bzl", "COMMON_ATTRIBUTES", "DEPS_ASPECTS", "compile_ts", "ts_providers_dict_to_struct")
 load("@build_bazel_rules_typescript//internal:common/tsconfig.bzl", "create_tsconfig")
 load("//internal:ts_config.bzl", "TsConfigInfo")
 
@@ -262,7 +262,7 @@ def _ts_library_impl(ctx):
     Returns:
       the struct returned by the call to compile_ts.
     """
-    return compile_ts(
+    ts_providers = compile_ts(
         ctx,
         is_library = True,
         deps = ctx.attr.deps,
@@ -270,6 +270,7 @@ def _ts_library_impl(ctx):
         devmode_compile_action = _devmode_compile_action,
         tsc_wrapped_tsconfig = tsc_wrapped_tsconfig,
     )
+    return ts_providers_dict_to_struct(ts_providers)
 
 ts_library = rule(
     _ts_library_impl,

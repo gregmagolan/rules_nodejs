@@ -109,21 +109,4 @@ This is typically provided by an aspect such as sources_apsect.
     },
 )
 
-DeclarationInfo = provider(
-    doc = """The DeclarationInfo provider allows JS rules to communicate typing information.
-
-TypeScript's .d.ts files are used as the interop format for describing types.
-
-The ts_library#deps attribute should require that this provider is attached.
-
-Note: historically this was a subset of the string-typed "typescript" provider.
-""",
-    # TODO: should we have .d.ts.map files too?
-    fields = {
-        "declarations": "A depset of .d.ts files produced by this rule",
-        "transitive_declarations": """A depset of .d.ts files produced by this rule and all its transitive dependencies.
-This prevents needing an aspect in rules that consume the typings, which improves performance.""",
-    },
-)
-
 # TODO: TsickleInfo might be a needed provider to send tsickle_externs and type_blacklisted_declarations
