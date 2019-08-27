@@ -27,8 +27,8 @@ exports_files([
 bzl_library(
     name = "bzl",
     srcs = [
-        "defs.bzl",
         "declaration_provider.bzl",
+        "defs.bzl",
         "providers.bzl",
     ],
     visibility = ["//visibility:public"],
