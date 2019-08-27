@@ -179,10 +179,35 @@ def _nodejs_binary_impl(ctx):
             node_tool_files += node_tool_info.target_tool.files.to_list()
             node_tool = _short_path_to_manifest_path(ctx, node_tool_files[0].short_path)
 
+        if not ctx.outputs.templated_args_file:
+            templated_args = ctx.attr.templated_args
+        else:
+            # Distribute the templated_args between the params file and the node options
+            params = []
+            templated_args = []
+            for a in ctx.attr.templated_args:
+                if a.startswith("--node_options="):
+                    templated_args.append(a)
+                else:
+                    params.append(a)
+
+            # Put the params into the params file
+            ctx.actions.write(
+                output = ctx.outputs.templated_args_file,
+                content = "\n".join([expand_location_into_runfiles(ctx, p) for p in params]),
+                is_executable = False,
+            )
+
+            # after the node_options args, pass the params file arg
+            templated_args.append(ctx.outputs.templated_args_file.short_path)
+
+            # also be sure to include the params file in the program inputs
+            node_tool_files += [ctx.outputs.templated_args_file]
+
         substitutions = {
             "TEMPLATED_args": " ".join([
                 expand_location_into_runfiles(ctx, a)
-                for a in ctx.attr.templated_args
+                for a in templated_args
             ]),
             "TEMPLATED_env_vars": env_vars,
             "TEMPLATED_expected_exit_code": str(expected_exit_code),
@@ -377,6 +402,13 @@ _NODEJS_EXECUTABLE_ATTRS = {
         doc = """Arguments which are passed to every execution of the program.
         To pass a node startup option, prepend it with `--node_options=`, e.g.
         `--node_options=--preserve-symlinks`
+        """,
+    ),
+    "templated_args_file": attr.output(
+        mandatory = False,
+        doc = """If specified, arguments specified in `templated_args` are instead written to this file,
+        which is then passed as an argument to the program. Arguments prefixed with `--node_options=` are
+        passed directly to node and not included in the params file.
         """,
     ),
     "_launcher_template": attr.label(

@@ -28,6 +28,7 @@ bzl_library(
     name = "bzl",
     srcs = [
         "defs.bzl",
+        "declaration_provider.bzl",
         "providers.bzl",
     ],
     visibility = ["//visibility:public"],
@@ -52,7 +53,7 @@ filegroup(
 
 npm_package(
     name = "rules_nodejs_package",
-    srcs = [
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
         "LICENSE",
         "defs.bzl",

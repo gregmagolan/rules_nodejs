@@ -277,11 +277,12 @@ if (DEBUG) {
 }
 
 for (const bazelCommand of config.bazelCommands) {
-  let bazelArgs = bazelCommand.split(' ');
-  // find specific test_args keyword if it exists
-  const testArgsPosition = bazelArgs.indexOf('<test_args>');
-  if (testArgsPosition !== -1) {
-    bazelArgs.splice(testArgsPosition, 1, ...testArgs);
+  const bazelArgs = bazelCommand.split(' ');
+  // look for `--` argument and insert testArgs before it
+  // if it exists, otherwise push to end of arguments
+  const doubleHyphenPos = bazelArgs.indexOf('--');
+  if (doubleHyphenPos !== -1) {
+    bazelArgs.splice(doubleHyphenPos, 0, ...testArgs);
   } else {
     bazelArgs.push(...testArgs);
   }
