@@ -260,7 +260,7 @@ _NODEJS_EXECUTABLE_ATTRS = {
         Chooses a subset of the configuration environment variables (taken from ctx.var), which also
         includes anything specified via the --define flag.
         Note, this can lead to different outputs produced by this rule.""",
-        default = ["DEBUG", "VERBOSE_LOGS"],
+        default = [],
     ),
     "data": attr.label_list(
         doc = """Runtime dependencies which may be loaded during execution.""",

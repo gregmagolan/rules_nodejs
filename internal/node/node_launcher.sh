@@ -134,7 +134,7 @@ done
 
 # Link the first-party modules into node_modules directory before running the actual program
 if [[ -n "$MODULES_MANIFEST" ]]; then
-  "${node}" "${link_modules_script}" "${MODULES_MANIFEST}"
+  "${node}" --preserve-symlnks "${link_modules_script}" "${MODULES_MANIFEST}"
 fi
 
 # The EXPECTED_EXIT_CODE lets us write bazel tests which assert that

@@ -13,7 +13,7 @@ genrule(
     name = "replace_node_path",
     srcs = [":test.sh"],
     outs = ["test_with_node.sh"],
-    cmd = "sed s#node#../$(NODE_PATH)# $< > $@",
+    cmd = "sed s#node\s#../$(NODE_PATH)\s# $< > $@",
     toolchains = ["@build_bazel_rules_nodejs//toolchains/node:toolchain"],
 )
 
