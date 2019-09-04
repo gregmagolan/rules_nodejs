@@ -31,11 +31,27 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v2 ---
 
+stderr_echo_and_run() { >&2 echo "+ $@" ; "$@" ; }
+
+ls_r () {
+  ls -R "$@" | awk '
+/:$/&&f{s=$0;f=0}
+/:$/&&!f{sub(/:$/,"");s=$0;f=1;next}
+NF&&f{ print s"/"$0 }' | xargs stat -f "%N%SY"
+}
+
+stderr_echo_and_run pwd
+
+stderr_echo_and_run ls_r ..
+
 readonly DIR="${TEST_WORKSPACE}/internal/linker"
 
 $(rlocation NODE_PATH) \
+  --preserve-symlinks-main \
   $(rlocation $DIR/link_node_modules.js)\
   $(rlocation $DIR/test/integration/_example.module_mappings.json)
+
+stderr_echo_and_run ls_r ..
 
 readonly ACTUAL=$(
   $(rlocation NODE_PATH) \
