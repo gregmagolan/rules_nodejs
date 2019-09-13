@@ -19,7 +19,7 @@ load(":index.bzl", _jasmine_node_test = "jasmine_node_test")
 
 def jasmine_node_test(
         deps = [],
-        jasmine_deps = ["@npm//jasmine", "@npm//jasmine-core", "@npm//jasmine-reporters", "@npm//v8-coverage"],
+        jasmine_deps = ["@npm//jasmine", "@npm//jasmine-core", "@npm//jasmine-reporters", "@npm//c8"],
         **kwargs):
     _jasmine_node_test(
         # When there is no @npm//@bazel/jasmine package we use @npm_bazel_jasmine instead.
@@ -28,5 +28,6 @@ def jasmine_node_test(
         deps = deps + jasmine_deps,
         jasmine = "@npm_bazel_jasmine//:jasmine__pkg",
         jasmine_entry_point = "@npm_bazel_jasmine//:jasmine_runner.js",
+        coverage_entry_point = "@npm_bazel_jasmine//:coverage_runner.js",
         **kwargs
     )

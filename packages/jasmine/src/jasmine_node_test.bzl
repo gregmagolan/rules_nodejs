@@ -29,9 +29,9 @@ def jasmine_node_test(
         expected_exit_code = 0,
         tags = [],
         config_file = None,
-        coverage = False,
         jasmine = "@npm//@bazel/jasmine",
         jasmine_entry_point = "@npm//:node_modules/@bazel/jasmine/jasmine_runner.js",
+        coverage_entry_point = "@npm//:node_modules/@bazel/jasmine/coverage_runner.js",
         **kwargs):
     """Runs tests in NodeJS using the Jasmine test runner.
 
@@ -62,6 +62,9 @@ def jasmine_node_test(
       jasmine_entry_point: A label providing the `@bazel/jasmine` entry point.
       **kwargs: Remaining arguments are passed to the test rule
     """
+    if kwargs.pop("coverage", False):
+        fail("The coverage attribute has been removed, run your target with bazel coverage instead")
+
     devmode_js_sources(
         name = "%s_devmode_srcs" % name,
         deps = srcs + deps,
@@ -73,15 +76,11 @@ def jasmine_node_test(
 
     all_data += [":%s_devmode_srcs.MF" % name]
     all_data += [Label("@bazel_tools//tools/bash/runfiles")]
+    all_data += [jasmine_entry_point]
 
     # If the target specified templated_args, pass it through.
     templated_args = kwargs.pop("templated_args", [])
     templated_args.append("$(location :%s_devmode_srcs.MF)" % name)
-
-    if coverage:
-        templated_args.append("--coverage")
-    else:
-        templated_args.append("--nocoverage")
 
     if config_file:
         # Calculate a label relative to the user's BUILD file
@@ -94,7 +93,7 @@ def jasmine_node_test(
     nodejs_test(
         name = name,
         data = all_data,
-        entry_point = jasmine_entry_point,
+        entry_point = coverage_entry_point,
         templated_args = templated_args,
         testonly = 1,
         expected_exit_code = expected_exit_code,

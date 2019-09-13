@@ -90,6 +90,9 @@ fi
 export RUNFILES
 # --- end RUNFILES initialization ---
 
+# TODO: debug - remove this
+set -x
+
 TEMPLATED_env_vars
 
 # Note: for debugging it is useful to see what files are actually present

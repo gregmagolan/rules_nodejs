@@ -188,6 +188,14 @@ def _nodejs_binary_impl(ctx):
         elif k in ctx.configuration.default_shell_env.keys():
             env_vars += "export %s=\"%s\"\n" % (k, ctx.configuration.default_shell_env[k])
 
+    # indicates that this was run with `bazel coverage`
+    if ctx.configuration.coverage_enabled:
+        # indicates that we have files to instrumented somewhere in the deps
+        if (ctx.coverage_instrumented() or any([ctx.coverage_instrumented(dep) for dep in ctx.attr.data])):
+            # we export NODE_V8_COVERAGE here to tell V8 to collect coverage
+            # then when the nodejs process exists it'll write it to COVERAGE_DIR
+            env_vars += "export NODE_V8_COVERAGE=$COVERAGE_DIR\n"
+
     expected_exit_code = 0
     if hasattr(ctx.attr, "expected_exit_code"):
         expected_exit_code = ctx.attr.expected_exit_code
@@ -276,6 +284,11 @@ def _nodejs_binary_impl(ctx):
             deps = depset([ctx.file.entry_point], transitive = [node_modules, sources]),
             pkgs = ctx.attr.data,
         ),
+        # indicates that the this binary should be instrumented by coverage
+        # see https://docs.bazel.build/versions/master/skylark/lib/coverage_common.html
+        # since this will be called from a nodejs_test, where the entrypoint is going to be the test file
+        # we shouldn't add the entrypoint as a attribute to collect here
+        coverage_common.instrumented_files_info(ctx, dependency_attributes = ["data"], extensions = ["js", "ts"]),
     ]
 
 _NODEJS_EXECUTABLE_ATTRS = {
@@ -514,6 +527,13 @@ nodejs_test = rule(
         "expected_exit_code": attr.int(
             doc = "The expected exit code for the test. Defaults to 0.",
             default = 0,
+        ),
+        # See the content of lcov_merger_sh for the reason we need this
+        "_lcov_merger": attr.label(
+            executable = True,
+            default = Label("@build_bazel_rules_nodejs//internal/coverage:lcov_merger_sh"),
+            # default = Label("@build_bazel_rules_nodejs//internal/coverage:lcov_merger_js"),
+            cfg = "target",
         ),
     }),
     doc = """

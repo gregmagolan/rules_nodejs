@@ -286,6 +286,10 @@ def _ts_library_impl(ctx):
         # TODO: Add remaining shared JS provider from design doc
         # (JSModuleInfo) and remove legacy "typescript" provider
         # once it is no longer needed.
+
+        # indicates that the files listed in this invocation under srcs should be instrumented by coverage
+        # also transitively collect from deps
+        coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["deps"]),
     ])
 
     return ts_providers_dict_to_struct(ts_providers)
