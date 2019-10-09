@@ -6,12 +6,11 @@
 # The name of the workspace should match the npm package where we publish, so that these
 # imports also make sense when referencing the published package.
 workspace(
-    name = "angular_bazel_example",
+    name = "examples_angular",
     managed_directories = {"@npm": ["node_modules"]},
 )
 
 # These rules are built-into Bazel but we need to load them first to download more rules
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # Fetch rules_nodejs so we can install our npm dependencies
@@ -72,11 +71,12 @@ load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories"
 
 web_test_repositories()
 
-# Temporary work-around for https://github.com/angular/angular/issues/28681
-# TODO(gregmagolan): go back to @io_bazel_rules_webtesting browser_repositories
-load("@npm_bazel_karma//:browser_repositories.bzl", "browser_repositories")
+load("@io_bazel_rules_webtesting//web/versioned:browsers-0.3.2.bzl", "browser_repositories")
 
-browser_repositories()
+browser_repositories(
+    chromium = True,
+    firefox = True,
+)
 
 # Setup the rules_typescript tooolchain
 load("@npm_bazel_typescript//:index.bzl", "ts_setup_workspace")
@@ -99,48 +99,4 @@ http_archive(
     urls = [
         "https://github.com/bazelbuild/bazel-toolchains/archive/92dd8a7.zip",
     ],
-)
-
-####################################################
-# Support creating Docker images for our node apps #
-####################################################
-
-http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "aed1c249d4ec8f703edddf35cbe9dfaca0b5f5ea6e4cd9e83e99f3b0d1136c3d",
-    strip_prefix = "rules_docker-0.7.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/archive/v0.7.0.tar.gz"],
-)
-
-load("@io_bazel_rules_docker//nodejs:image.bzl", nodejs_image_repos = "repositories")
-
-nodejs_image_repos()
-
-####################################################
-# Kubernetes setup, for deployment to Google Cloud #
-####################################################
-
-git_repository(
-    name = "io_bazel_rules_k8s",
-    commit = "36ae5b534cc51ab0815c9bc723760469a9f7175c",
-    remote = "https://github.com/bazelbuild/rules_k8s.git",
-    shallow_since = "1545317854 -0500",
-)
-
-load("@io_bazel_rules_k8s//k8s:k8s.bzl", "k8s_defaults", "k8s_repositories")
-
-k8s_repositories()
-
-k8s_defaults(
-    # This creates a rule called "k8s_deploy" that we can call later
-    name = "k8s_deploy",
-    # This is the name of the cluster as it appears in:
-    #   kubectl config view --minify -o=jsonpath='{.contexts[0].context.cluster}'
-    cluster = "_".join([
-        "gke",
-        "internal-200822",
-        "us-west1-a",
-        "angular-bazel-example",
-    ]),
-    kind = "deployment",
 )
