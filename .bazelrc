@@ -22,32 +22,74 @@ build --define=SOME_TEST_ENV=some_value
 test --define=SOME_TEST_ENV=some_value
 build --action_env=SOME_OTHER_ENV=some_other_value
 
-###############################
-# Remote Build Execution support
-# Turn on these settings with
-#  --config=remote
-###############################
-
-# Load default settings for Remote Build Execution.
-import %workspace%/third_party/github.com/bazelbuild/bazel-toolchains/bazelrc/bazel-0.28.0.bazelrc
-
-# Remote instance, borrow the one used by Angular devs
-build:remote --remote_instance_name=projects/internal-200822/instances/default_instance
-build:remote --project_id=internal-200822
-
-# To reproduce Windows issues where there is no runfiles symlink there
-build:no-runfiles --noenable_runfiles
-# workaround https://github.com/bazelbuild/bazel/issues/7994
-build:no-runfiles --spawn_strategy=standalone
-# This config is probably only used while debugging
-build:no-runfiles --define=VERBOSE_LOG=1
-
+###########################################################
 # Docker Sandbox Mode
 # Useful for troubleshooting Remote Build Execution problems
 # See https://docs.bazel.build/versions/master/remote-execution-sandbox.html#prerequisites
+# Turn on these settings with `--config=docker-sandbox`
+###########################################################
+
 build:docker-sandbox --spawn_strategy=docker --strategy=Javac=docker --genrule_strategy=docker
 build:docker-sandbox --define=EXECUTOR=remote
 build:docker-sandbox --experimental_docker_verbose
 build:docker-sandbox --experimental_enable_docker_sandbox
 # This is the same image used on BazelCI rbe_ubuntu1604 job
 build:docker-sandbox --experimental_docker_image=gcr.io/cloud-marketplace/google/rbe-ubuntu16-04
+
+###########################################################
+# To reproduce Windows issues where there is no runfiles symlink there
+# Turn on these settings with `--config=no-runfiles`
+###########################################################
+
+build:no-runfiles --noenable_runfiles
+# workaround https://github.com/bazelbuild/bazel/issues/7994
+build:no-runfiles --spawn_strategy=standalone
+# This config is probably only used while debugging
+build:no-runfiles --define=VERBOSE_LOG=1
+
+###########################################################
+# Remote Build Execution support
+# Turn on these settings with `--config=remote` together with
+# either `--config=remote-custom` or `--config=remote-google`
+###########################################################
+
+# This .bazelrc file contains all of the flags required for the provided
+# toolchain with Remote Build Execution.
+# Note your WORKSPACE must contain an rbe_autoconfig target with
+# name="rbe_default" to use these flags as-is.
+
+# The following --define=EXECUTOR=remote will be able to be removed
+# once https://github.com/bazelbuild/bazel/issues/7254 is fixed
+build:remote --define=EXECUTOR=remote
+
+# Set a higher timeout value, just in case.
+build:remote --remote_timeout=600
+
+# Depending on how many machines are in the remote execution instance, setting
+# this higher can make builds faster by allowing more jobs to run in parallel.
+# Setting it too high can result in jobs that timeout, however, while waiting
+# for a remote machine to execute them.
+build:remote --jobs=50
+
+# Toolchain and platform related flags
+build:remote --host_javabase=@rbe_default//java:jdk
+build:remote --javabase=@rbe_default//java:jdk
+build:remote --host_java_toolchain=@bazel_tools//tools/jdk:toolchain_hostjdk8
+build:remote --java_toolchain=@bazel_tools//tools/jdk:toolchain_hostjdk8
+build:remote --crosstool_top=@rbe_default//cc:toolchain
+build:remote --action_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+build:remote --extra_toolchains=@rbe_default//config:cc-toolchain
+build:remote --extra_execution_platforms=@rbe_default//config:platform
+build:remote --host_platform=@rbe_default//config:platform
+build:remote --platforms=@rbe_default//config:platform
+
+# Custom remote instance. An RBE server such as buildfarm
+# (https://github.com/bazelbuild/bazel-buildfarm) can be used here.
+build:remote-custom --remote_executor=localhost:8980
+
+# Google remote instance and caching
+build:remote-google --remote_executor=remotebuildexecution.googleapis.com
+build:remote-google --remote_cache=remotebuildexecution.googleapis.com
+build:remote-google --remote_instance_name=projects/internal-200822/instances/default_instance
+build:remote-google --project_id=internal-200822
+build:remote-google --google_default_credentials
