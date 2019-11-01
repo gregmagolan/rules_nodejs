@@ -2,9 +2,7 @@ load("@build_bazel_rules_nodejs//:index.bzl", "nodejs_binary", "nodejs_test", "n
 load("//internal/js_library:js_library.bzl", "js_library")
 load("//third_party/github.com/bazelbuild/bazel-skylib:rules/copy_file.bzl", "copy_file")
 load("//third_party/github.com/bazelbuild/bazel-skylib:rules/write_file.bzl", "write_file")
-load(":nodejs_toolchain_test.bzl", "nodejs_binary_test_suite")
-
-nodejs_binary_test_suite()
+load(":nodejs_toolchain_test.bzl", "nodejs_toolchain_test")
 
 # You can have a nodejs_binary with no node_modules attribute
 # and no fine grained deps
@@ -182,4 +180,25 @@ nodejs_test(
         "minified.js",
     ],
     entry_point = "npm_package_bin.spec.js",
+)
+
+# must be run with --platforms=@build_bazel_rules_nodejs//toolchains/node:linux_amd64
+nodejs_toolchain_test(
+    name = "nodejs_toolchain_linux_test",
+    expected_node_path = "external/nodejs_linux_amd64/bin/nodejs/bin/node",
+    tags = ["manual"],
+)
+
+# must be run with --platforms=@build_bazel_rules_nodejs//toolchains/node:darwin_amd64
+nodejs_toolchain_test(
+    name = "nodejs_toolchain_darwin_test",
+    expected_node_path = "external/nodejs_darwin_amd64/bin/nodejs/bin/node",
+    tags = ["manual"],
+)
+
+# must be run with --platforms=@build_bazel_rules_nodejs//toolchains/node:windows_amd64
+nodejs_toolchain_test(
+    name = "nodejs_toolchain_windows_test",
+    expected_node_path = "external/nodejs_windows_amd64/bin/nodejs/node.exe",
+    tags = ["manual"],
 )
