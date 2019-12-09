@@ -66,6 +66,18 @@ KARMA_WEB_TEST_ATTRS = {
         cfg = "target",
         allow_files = True,
     ),
+    "post_test": attr.label(
+        doc = "Optional binary to run after karma.",
+        allow_files = True,
+        cfg = "target",
+        executable = True,
+    ),
+    "pre_test": attr.label(
+        doc = "Optional binary to run before karma.",
+        allow_files = True,
+        cfg = "target",
+        executable = True,
+    ),
     "static_files": attr.label_list(
         doc = """Arbitrary files which are available to be served on request.
         Files are served at:
@@ -249,6 +261,12 @@ source "${{RUNFILES_DIR:-/dev/null}}/$f" 2>/dev/null || \
 
 readonly KARMA=$(rlocation "{TMPL_karma}")
 readonly CONF=$(rlocation "{TMPL_conf}")
+if [[ "{TMPL_pre_test}" != "" ]]; then
+    readonly PRE_TEST=$(rlocation "{TMPL_pre_test}")
+fi
+if [[ "{TMPL_post_test}" != "" ]]; then
+    readonly POST_TEST=$(rlocation "{TMPL_post_test}")
+fi
 
 export HOME=$(mktemp -d)
 
@@ -279,11 +297,24 @@ echo "conf        :" ${{CONF}}
 echo "node_options:" ${{NODE_OPTIONS[@]:-}}
 printf "\n"
 
+# Run optional pre-test step
+${{PRE_TEST:-}}
+
+set +e
 readonly COMMAND="${{KARMA}} ${{ARGV[@]}} ${{NODE_OPTIONS[@]:-}}"
 ${{COMMAND}}
+RESULT="$?"
+
+# Run optional post-test step
+${{POST_TEST:-}}
+set -e
+
+exit ${{RESULT}}
 """.format(
             TMPL_karma = _to_manifest_path(ctx, ctx.executable.karma),
             TMPL_conf = _to_manifest_path(ctx, configuration),
+            TMPL_pre_test = _to_manifest_path(ctx, ctx.executable.pre_test) if ctx.attr.pre_test else "",
+            TMPL_post_test = _to_manifest_path(ctx, ctx.executable.post_test) if ctx.attr.post_test else "",
         ),
     )
 
@@ -296,24 +327,31 @@ ${{COMMAND}}
         else:
             config_sources = [ctx.file.config_file]
 
-    runfiles = [
+    runfiles_inputs = [
         configuration,
         amd_names_shim,
     ]
-    runfiles += config_sources
-    runfiles += ctx.files.srcs
-    runfiles += ctx.files.deps
-    runfiles += ctx.files.runtime_deps
-    runfiles += ctx.files.bootstrap
-    runfiles += ctx.files.static_files
-    runfiles += ctx.files.data
+    runfiles_inputs += config_sources
+    runfiles_inputs += ctx.files.srcs
+    runfiles_inputs += ctx.files.deps
+    runfiles_inputs += ctx.files.runtime_deps
+    runfiles_inputs += ctx.files.bootstrap
+    runfiles_inputs += ctx.files.static_files
+    runfiles_inputs += ctx.files.data
+
+    runfiles = ctx.runfiles(
+        files = runfiles_inputs,
+        transitive_files = depset(transitive = [files, node_modules]),
+    )
+    runfiles = runfiles.merge(ctx.attr.karma[DefaultInfo].data_runfiles)
+    if ctx.attr.pre_test:
+        runfiles = runfiles.merge(ctx.attr.pre_test[DefaultInfo].data_runfiles)
+    if ctx.attr.post_test:
+        runfiles = runfiles.merge(ctx.attr.post_test[DefaultInfo].data_runfiles)
 
     return [DefaultInfo(
         files = depset([ctx.outputs.executable]),
-        runfiles = ctx.runfiles(
-            files = runfiles,
-            transitive_files = depset(transitive = [files, node_modules]),
-        ).merge(ctx.attr.karma[DefaultInfo].data_runfiles),
+        runfiles = runfiles,
         executable = ctx.outputs.executable,
     )]
 
