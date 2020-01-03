@@ -17,20 +17,21 @@
 'use strict';
 
 const args = process.argv.slice(2);
+const out = JSON.parse(require('fs').readFileSync(require.resolve(args.shift()), 'utf-8'));
+const expected = args;
 
-// The arguments are passed via a params file
-const [a1, a2] = require('fs').readFileSync(require.resolve(args[0]), 'utf-8').split(/\r?\n/);
-
-const a1_exp = 'build_bazel_rules_nodejs/package.json';
-const a2_exp =
-    'build_bazel_rules_nodejs/package.json build_bazel_rules_nodejs/internal/common/test/check_params_file.js';
-
-if (a1 !== a1_exp) {
-  console.error(`expected first argument in params file to be '${a1_exp}'`)
+if (out.length !== expected.length) {
+  console.error(`expected ${expected.length} out but got ${out.length}`);
+  console.error(`${JSON.stringify(out, null, 2).replace(/\"/g, '\'')} !== ${
+      JSON.stringify(expected, null, 2).replace(/\"/g, '\'')}`)
   process.exit(1);
 }
 
-if (a2 !== a2_exp) {
-  console.error(`expected second argument in params file to be '${a2_exp}'`)
-  process.exit(1);
+for (let i = 0; i < out.length; ++i) {
+  if (out[i] !== expected[i]) {
+    console.error(`expected param ${i + 1} in out file to be '${expected[i]}' but got '${out[i]}'`);
+    console.error(`${JSON.stringify(out, null, 2).replace(/\"/g, '\'')} !== ${
+        JSON.stringify(expected, null, 2).replace(/\"/g, '\'')}`)
+    process.exit(1);
+  }
 }

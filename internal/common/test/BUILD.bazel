@@ -24,7 +24,8 @@ copy_to_bin(
 filegroup(
     name = "locations_in",
     srcs = [
-        "check_params_file.js",
+        "params_file.spec.js",
+        ":a",
         "//:package.json",
     ],
 )
@@ -33,8 +34,17 @@ params_file(
     name = "params_file",
     out = ":params_file.out",
     args = [
-        "$(location //:package.json)",
+        "$(SOME_TEST_ENV)",
+        "$(manifestpaths :locations_in)",
+        "$(manifestpath //:package.json)",
+        "$(execpaths :locations_in)",
+        "$(execpath //:package.json)",
+        "$(rootpaths :locations_in)",
+        "$(rootpath //:package.json)",
+        # test legacy $(locations) & $(location) expansions which
+        # are synonyms for $(manifestpaths) and $(manifestpath)
         "$(locations :locations_in)",
+        "$(location //:package.json)",
     ],
     data = [
         ":locations_in",
@@ -45,6 +55,10 @@ params_file(
 nodejs_test(
     name = "params_file_test",
     data = [":params_file.out"],
-    entry_point = ":check_params_file.js",
-    templated_args = ["$(location :params_file.out)"],
+    entry_point = ":params_file.spec.js",
+    templated_args = [
+        "$(TARGET_CPU)",
+        "$(COMPILATION_MODE)",
+        "$(manifestpath :params_file.out)",
+    ],
 )

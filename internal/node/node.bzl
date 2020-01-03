@@ -196,11 +196,19 @@ def _nodejs_binary_impl(ctx):
 
     is_builtin = ctx.attr._node.label.workspace_name in ["nodejs_%s" % p for p in BUILT_IN_NODE_PLATFORMS]
 
+    # First expand predefined source/output path variables
+    # $(execpath), $(rootpath), $(manifestpath) & legacy $(location)
+    expanded_args = [expand_location_into_runfiles(ctx, a, ctx.attr.data) for a in ctx.attr.templated_args]
+
+    # Next expand predefined variables & custom variables
+    expanded_args = [ctx.expand_make_variables("templated_args", e, {}) for e in expanded_args]
+
     substitutions = {
-        "TEMPLATED_args": " ".join([
-            expand_location_into_runfiles(ctx, a, ctx.attr.data)
-            for a in ctx.attr.templated_args
-        ]),
+        # TODO: Split up results of multifile expansions into separate args and qoute them with
+        #       "TEMPLATED_args": " ".join(["\"%s\"" % a for a in expanded_args]),
+        #       Need a smarter split operation than `expanded_arg.split(" ")` as it will split
+        #       up args with intentional spaces and it will fail for expanded files with spaces.
+        "TEMPLATED_args": " ".join(expanded_args),
         "TEMPLATED_bazel_require_script": _to_manifest_path(ctx, ctx.file._bazel_require_script),
         "TEMPLATED_env_vars": env_vars,
         "TEMPLATED_expected_exit_code": str(expected_exit_code),
@@ -422,8 +430,56 @@ jasmine_node_test(
     "templated_args": attr.string_list(
         doc = """Arguments which are passed to every execution of the program.
         To pass a node startup option, prepend it with `--node_options=`, e.g.
-        `--node_options=--preserve-symlinks`
-        """,
+        `--node_options=--preserve-symlinks`.
+
+Subject to 'Make variable' substitution. See https://docs.bazel.build/versions/master/be/make-variables.html.
+
+1. Predefined source/output path substitions is applied first:
+
+Expands all $(execpath ...), $(rootpath ...), $(manifestpath ...) and legacy $(location ...) templates in the
+given string by replacing with the expanded path. Expansion only works for labels that point to direct dependencies
+of this rule or that are explicitly listed in the optional argument targets.
+
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables.
+
+Use $(manifestpath) and $(manifestpaths) to expand labels to the manifest file path.
+This is of the format: `repo/path/to/file`.
+
+Use $(execpath) and $(execpaths) to expand labels to the execroot (where Bazel runs build actions).
+This is of the format:
+- `./file`
+- `path/to/file`
+- `external/external_repo/path/to/file`
+- `<bin_dir>/path/to/file`
+- `<bin_dir>/external/external_repo/path/to/file`
+
+Use $(rootpath) and $(rootpaths) to expand labels to the runfiles path that a built binary can use
+to find its dependencies. This path is of the format:
+- `./file`
+- `path/to/file`
+- `../external_repo/path/to/file`
+
+The legacy $(location) and $(locations) expansion is deprecated and is now a symnonyms for $(manifestpath)
+and $(manifestpaths) for backward compatability. This differs from how $(location) and $(locations) expansion
+behaves in expansion the `args` attribute of a *_binary or *_test which returns the rootpath.
+See https://docs.bazel.build/versions/master/be/common-definitions.html#common-attributes-binaries.
+This also differs from how the builtin ctx.expand_location() expansions of $(location) and ($locations) behave
+as that function returns either the execpath or rootpath depending on the context.
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables.
+
+The behavior of $(location) and $(locations) expansion may change in the future with support either being removed
+entirely or the expansion changed to return the same path as ctx.expand_location() returns for these.
+
+2. Predefined variables & Custom variables are expanded second:
+
+Predefined "Make" variables such as $(COMPILATION_MODE) and $(TARGET_CPU) are expanded.
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_variables.
+
+Custom variables are also expanded including variables set through the Bazel CLI with --define=SOME_VAR=SOME_VALUE.
+See https://docs.bazel.build/versions/master/be/make-variables.html#custom_variables.
+
+Predefined genrule variables are not supported in this context.
+""",
     ),
     "_bash_runfile_helpers": attr.label(default = Label("@bazel_tools//tools/bash/runfiles")),
     "_bazel_require_script": attr.label(

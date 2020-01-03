@@ -26,13 +26,53 @@ _ATTRS = {
     ),
     "args": attr.string_list(
         doc = """Arguments to concatenate into a params file.
-Subject to "Make" variable substitutions.
-See https://docs.bazel.build/versions/master/be/make-variables.html.
-1. Predefined source/output path variables
-   https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables
-2. Predefined variables & Custom variables
-   https://docs.bazel.build/versions/master/be/make-variables.html#predefined_variables
-   https://docs.bazel.build/versions/master/be/make-variables.html#custom_variables
+
+Subject to 'Make variable' substitution. See https://docs.bazel.build/versions/master/be/make-variables.html.
+
+1. Predefined source/output path substitions is applied first:
+
+Expands all $(execpath ...), $(rootpath ...), $(manifestpath ...) and legacy $(location ...) templates in the
+given string by replacing with the expanded path. Expansion only works for labels that point to direct dependencies
+of this rule or that are explicitly listed in the optional argument targets.
+
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables.
+
+Use $(manifestpath) and $(manifestpaths) to expand labels to the manifest file path.
+This is of the format: `repo/path/to/file`.
+
+Use $(execpath) and $(execpaths) to expand labels to the execroot (where Bazel runs build actions).
+This is of the format:
+- `./file`
+- `path/to/file`
+- `external/external_repo/path/to/file`
+- `<bin_dir>/path/to/file`
+- `<bin_dir>/external/external_repo/path/to/file`
+
+Use $(rootpath) and $(rootpaths) to expand labels to the runfiles path that a built binary can use
+to find its dependencies. This path is of the format:
+- `./file`
+- `path/to/file`
+- `../external_repo/path/to/file`
+
+The legacy $(location) and $(locations) expansion is deprecated and is now a symnonyms for $(manifestpath)
+and $(manifestpaths) for backward compatability. This differs from how $(location) and $(locations) expansion
+behaves in expansion the `args` attribute of a *_binary or *_test which returns the rootpath.
+See https://docs.bazel.build/versions/master/be/common-definitions.html#common-attributes-binaries.
+This also differs from how the builtin ctx.expand_location() expansions of $(location) and ($locations) behave
+as that function returns either the execpath or rootpath depending on the context.
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables.
+
+The behavior of $(location) and $(locations) expansion may change in the future with support either being removed
+entirely or the expansion changed to return the same path as ctx.expand_location() returns for these.
+
+2. Predefined variables & Custom variables are expanded second:
+
+Predefined "Make" variables such as $(COMPILATION_MODE) and $(TARGET_CPU) are expanded.
+See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_variables.
+
+Custom variables are also expanded including variables set through the Bazel CLI with --define=SOME_VAR=SOME_VALUE.
+See https://docs.bazel.build/versions/master/be/make-variables.html#custom_variables.
+
 Predefined genrule variables are not supported in this context.""",
     ),
     "data": attr.label_list(
