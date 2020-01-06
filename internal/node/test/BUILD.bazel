@@ -270,7 +270,7 @@ nodejs_test(
     data = [":expand_variables.out"],
     entry_point = ":expand_variables.spec.js",
     templated_args = [
-        "$(manifestpath :expand_variables.out)",
+        "$(rootpath :expand_variables.out)",
         "$(COMPILATION_MODE)",
         "$(TARGET_CPU)",
         "$(BINDIR)",

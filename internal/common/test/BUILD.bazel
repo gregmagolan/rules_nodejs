@@ -59,6 +59,6 @@ nodejs_test(
     templated_args = [
         "$(TARGET_CPU)",
         "$(COMPILATION_MODE)",
-        "$(manifestpath :params_file.out)",
+        "$(rootpath :params_file.out)",
     ],
 )

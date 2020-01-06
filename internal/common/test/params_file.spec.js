@@ -16,10 +16,14 @@
  */
 'use strict';
 
+const runfiles = require(process.env['BAZEL_NODE_RUNFILES_HELPER']);
+
 // The arguments are passed via a params file
 const TARGET_CPU = process.argv[2];
 const COMPILATION_MODE = process.argv[3];
-const params = require('fs').readFileSync(require.resolve(process.argv[4]), 'utf-8').split(/\r?\n/);
+const params = require('fs')
+                   .readFileSync(runfiles.resolveWorkspaceRelative(process.argv[4]), 'utf-8')
+                   .split(/\r?\n/);
 
 const expected = [
   'some_value',

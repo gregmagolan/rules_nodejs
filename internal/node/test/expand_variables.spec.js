@@ -16,8 +16,10 @@
  */
 'use strict';
 
+const runfiles = require(process.env['BAZEL_NODE_RUNFILES_HELPER']);
 const args = process.argv.slice(2);
-const out = JSON.parse(require('fs').readFileSync(require.resolve(args.shift()), 'utf-8'));
+const out = JSON.parse(
+    require('fs').readFileSync(runfiles.resolveWorkspaceRelative(args.shift()), 'utf-8'));
 const expected = args;
 
 if (out.length !== expected.length) {
