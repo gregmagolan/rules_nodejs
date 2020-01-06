@@ -72,7 +72,7 @@ def jasmine_node_test(
 
     # If the target specified templated_args, pass it through.
     templated_args = kwargs.pop("templated_args", [])
-    templated_args.append("$(manifestpath :%s_devmode_srcs.MF)" % name)
+    templated_args.append("$(rootpath :%s_devmode_srcs.MF)" % name)
 
     if coverage:
         templated_args.append("--coverage")
@@ -83,7 +83,7 @@ def jasmine_node_test(
         # Calculate a label relative to the user's BUILD file
         pkg = Label("%s//%s:__pkg__" % (native.repository_name(), native.package_name()))
         all_data.append(pkg.relative(config_file))
-        templated_args.append("$(manifestpath %s)" % config_file)
+        templated_args.append("$(rootpath %s)" % config_file)
     else:
         templated_args.append("--noconfig")
 
