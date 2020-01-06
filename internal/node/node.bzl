@@ -229,7 +229,7 @@ def _nodejs_binary_impl(ctx):
 
     runfiles = []
     runfiles.extend(node_tool_files)
-    runfiles.extend(ctx.files._bash_runfile_helpers)
+    runfiles.extend(ctx.files._bash_runfile_helper)
     runfiles.append(ctx.outputs.loader)
     runfiles.append(ctx.file._repository_args)
 
@@ -481,7 +481,7 @@ See https://docs.bazel.build/versions/master/be/make-variables.html#custom_varia
 Predefined genrule variables are not supported in this context.
 """,
     ),
-    "_bash_runfile_helpers": attr.label(default = Label("@bazel_tools//tools/bash/runfiles")),
+    "_bash_runfile_helper": attr.label(default = Label("@build_bazel_rules_nodejs//third_party/github.com/bazelbuild/bazel/tools/bash/runfiles")),
     "_bazel_require_script": attr.label(
         default = Label("//internal/node:bazel_require_script.js"),
         allow_single_file = True,

@@ -68,7 +68,7 @@ def jasmine_node_test(
     all_data = data + srcs + deps + [Label(jasmine)]
 
     all_data += [":%s_devmode_srcs.MF" % name]
-    all_data += [Label("@bazel_tools//tools/bash/runfiles")]
+    all_data += [Label("@build_bazel_rules_nodejs//third_party/github.com/bazelbuild/bazel/tools/bash/runfiles")]
 
     # If the target specified templated_args, pass it through.
     templated_args = kwargs.pop("templated_args", [])
