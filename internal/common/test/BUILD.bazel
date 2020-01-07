@@ -35,14 +35,10 @@ params_file(
     out = ":params_file.out",
     args = [
         "$(SOME_TEST_ENV)",
-        "$(manifestpaths :locations_in)",
-        "$(manifestpath //:package.json)",
         "$(execpaths :locations_in)",
         "$(execpath //:package.json)",
         "$(rootpaths :locations_in)",
         "$(rootpath //:package.json)",
-        # test legacy $(locations) & $(location) expansions which
-        # are synonyms for $(manifestpaths) and $(manifestpath)
         "$(locations :locations_in)",
         "$(location //:package.json)",
     ],

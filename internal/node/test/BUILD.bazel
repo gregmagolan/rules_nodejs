@@ -128,30 +128,30 @@ nodejs_test(
 )
 
 nodejs_test(
-    name = "bootstrap_manifestpath_test",
+    name = "bootstrap_rootpath_test",
     data = ["bootstrap.js"],
     entry_point = ":bootstrap.spec.js",
-    templated_args = ["--node_options=--require=$$(rlocation $(manifestpath :bootstrap.js))"],
+    templated_args = ["--node_options=--require=$$(rlocation $(rootpath :bootstrap.js))"],
 )
 
-# Special case when $(manifestpath) is for a root file
+# Special case when $(rootpath) is for a root file
 nodejs_test(
-    name = "bootstrap_manifestpath_root_test",
+    name = "bootstrap_rootpath_root_test",
     data = ["//:bootstrap.js"],
     entry_point = ":bootstrap.spec.js",
-    templated_args = ["--node_options=--require=$$(rlocation $(manifestpath //:bootstrap.js))"],
+    templated_args = ["--node_options=--require=$$(rlocation $(rootpath //:bootstrap.js))"],
 )
 
 nodejs_test(
-    name = "bootstraps_manifestpath_test",
+    name = "bootstraps_rootpath_test",
     data = [
         "bootstrap1.js",
         "bootstrap2.js",
     ],
     entry_point = ":bootstraps.spec.js",
     templated_args = [
-        "--node_options=--require=$$(rlocation $(manifestpath :bootstrap1.js))",
-        "--node_options=--require=$$(rlocation $(manifestpath :bootstrap2.js))",
+        "--node_options=--require=$$(rlocation $(rootpath :bootstrap1.js))",
+        "--node_options=--require=$$(rlocation $(rootpath :bootstrap2.js))",
     ],
 )
 

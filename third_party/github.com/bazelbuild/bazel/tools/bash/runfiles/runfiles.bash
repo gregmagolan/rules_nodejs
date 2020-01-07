@@ -89,6 +89,16 @@ msys*|mingw*|cygwin*)
   ;;
 esac
 
+function normpath() {
+  # Remove all /./ sequences.
+  local path=${1//\/.\//\/}
+  # Remove dir/.. sequences.
+  while [[ $path =~ ([^/][^/]*/\.\./) ]]; do
+    path=${path/${BASH_REMATCH[0]}/}
+  done
+  echo $path
+}
+
 # Prints to stdout the runtime location of a data-dependency.
 function rlocation() {
   if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
@@ -100,28 +110,33 @@ function rlocation() {
     fi
     # If the path is absolute, print it as-is.
     echo "$1"
-  elif [[ "$1" == ../* || "$1" == */.. || "$1" == ./* || "$1" == */./* || "$1" == "*/." || "$1" == *//* ]]; then
-    if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
-      echo >&2 "ERROR[runfiles.bash]: rlocation($1): path is not normalized"
-    fi
+  elif [[ "$1" == */.. || "$1" == */./* || "$1" == "*/." || "$1" == *//* ]]; then
+    echo >&2 "ERROR[runfiles.bash]: rlocation($1): path is not normalized"
     return 1
   elif [[ "$1" == \\* ]]; then
-    if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
-      echo >&2 "ERROR[runfiles.bash]: rlocation($1): absolute path without" \
-               "drive name"
-    fi
+    echo >&2 "ERROR[runfiles.bash]: rlocation($1): absolute path without" \
+              "drive name"
     return 1
   else
+    local rootpath=$(normpath ${BAZEL_WORKSPACE:-/dev/null}/$1)
     if [[ -e "${RUNFILES_DIR:-/dev/null}/$1" ]]; then
       if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
         echo >&2 "INFO[runfiles.bash]: rlocation($1): found under RUNFILES_DIR ($RUNFILES_DIR), return"
       fi
       echo "${RUNFILES_DIR}/$1"
+    elif [[ -e "${RUNFILES_DIR:-/dev/null}/${rootpath}" ]]; then
+      if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
+        echo >&2 "INFO[runfiles.bash]: rlocation($1): found under RUNFILES_DIR/BAZEL_WORKSPACE ($RUNFILES_DIR/$BAZEL_WORKSPACE), return"
+      fi
+      echo "${RUNFILES_DIR}/${rootpath}"
     elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
       if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
         echo >&2 "INFO[runfiles.bash]: rlocation($1): looking in RUNFILES_MANIFEST_FILE ($RUNFILES_MANIFEST_FILE)"
       fi
-      local -r result=$(grep -m1 "^$1 " "${RUNFILES_MANIFEST_FILE}" | cut -d ' ' -f 2-)
+      local result=$(grep -m1 "^$1 " "${RUNFILES_MANIFEST_FILE}" | cut -d ' ' -f 2-)
+      if [[ -z "${result}" ]]; then
+        result=$(grep -m1 "^${rootpath} " "${RUNFILES_MANIFEST_FILE}" | cut -d ' ' -f 2-)
+      fi
       if [[ -e "${result:-/dev/null}" ]]; then
         if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
           echo >&2 "INFO[runfiles.bash]: rlocation($1): found in manifest as ($result)"
@@ -134,11 +149,9 @@ function rlocation() {
         echo ""
       fi
     else
-      if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
-        echo >&2 "ERROR[runfiles.bash]: cannot look up runfile \"$1\" " \
-                 "(RUNFILES_DIR=\"${RUNFILES_DIR:-}\"," \
-                 "RUNFILES_MANIFEST_FILE=\"${RUNFILES_MANIFEST_FILE:-}\")"
-      fi
+      echo >&2 "ERROR[runfiles.bash]: cannot look up runfile \"$1\" " \
+               "(RUNFILES_DIR=\"${RUNFILES_DIR:-}\"," \
+               "RUNFILES_MANIFEST_FILE=\"${RUNFILES_MANIFEST_FILE:-}\")"
       return 1
     fi
   fi

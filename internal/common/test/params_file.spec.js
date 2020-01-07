@@ -27,29 +27,23 @@ const params = require('fs')
 
 const expected = [
   'some_value',
-  // manifestpaths
-  'build_bazel_rules_nodejs/package.json',
-  'build_bazel_rules_nodejs/internal/common/test/foo/bar/a.txt',
-  'build_bazel_rules_nodejs/internal/common/test/params_file.spec.js',
-  // manifestpath
-  'build_bazel_rules_nodejs/package.json',
-  // execpaths
+  // $execpaths
   './package.json',
   `bazel-out/${TARGET_CPU}-${COMPILATION_MODE}/bin/internal/common/test/foo/bar/a.txt`,
   'internal/common/test/params_file.spec.js',
-  // execpath
+  // $execpath
   './package.json',
-  // rootpaths
+  // $rootpaths
   './package.json',
   'internal/common/test/foo/bar/a.txt',
   'internal/common/test/params_file.spec.js',
-  // rootpath
+  // $rootpath
   './package.json',
-  // locations (synonym for manifestpaths)
+  // $locations (expands to runfiles manifest path of format repo/path/to/file)
   'build_bazel_rules_nodejs/package.json',
   'build_bazel_rules_nodejs/internal/common/test/foo/bar/a.txt',
   'build_bazel_rules_nodejs/internal/common/test/params_file.spec.js',
-  // location (synonym for manifestpath)
+  // $location (expands to runfiles manifest path of format repo/path/to/file)
   'build_bazel_rules_nodejs/package.json',
 ];
 

@@ -31,14 +31,17 @@ Subject to 'Make variable' substitution. See https://docs.bazel.build/versions/m
 
 1. Predefined source/output path substitions is applied first:
 
-Expands all $(execpath ...), $(rootpath ...), $(manifestpath ...) and legacy $(location ...) templates in the
+Expands all $(execpath ...), $(rootpath ...) and legacy $(location ...) templates in the
 given string by replacing with the expanded path. Expansion only works for labels that point to direct dependencies
 of this rule or that are explicitly listed in the optional argument targets.
 
 See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_label_variables.
 
-Use $(manifestpath) and $(manifestpaths) to expand labels to the manifest file path.
-This is of the format: `repo/path/to/file`.
+Use $(rootpath) and $(rootpaths) to expand labels to the runfiles path that a built binary can use
+to find its dependencies. This path is of the format:
+- `./file`
+- `path/to/file`
+- `../external_repo/path/to/file`
 
 Use $(execpath) and $(execpaths) to expand labels to the execroot (where Bazel runs build actions).
 This is of the format:
@@ -48,15 +51,9 @@ This is of the format:
 - `<bin_dir>/path/to/file`
 - `<bin_dir>/external/external_repo/path/to/file`
 
-Use $(rootpath) and $(rootpaths) to expand labels to the runfiles path that a built binary can use
-to find its dependencies. This path is of the format:
-- `./file`
-- `path/to/file`
-- `../external_repo/path/to/file`
-
-The legacy $(location) and $(locations) expansion is deprecated and is now a symnonyms for $(manifestpath)
-and $(manifestpaths) for backward compatability. This differs from how $(location) and $(locations) expansion
-behaves in expansion the `args` attribute of a *_binary or *_test which returns the rootpath.
+The legacy $(location) and $(locations) expansion is DEPRECATED as it returns the runfiles manifest path of the
+format `repo/path/to/file` which behaves differently than the built-in $(location) expansion in args of *_binary
+and *_test rules which returns the rootpath.
 See https://docs.bazel.build/versions/master/be/common-definitions.html#common-attributes-binaries.
 This also differs from how the builtin ctx.expand_location() expansions of $(location) and ($locations) behave
 as that function returns either the execpath or rootpath depending on the context.
@@ -64,6 +61,40 @@ See https://docs.bazel.build/versions/master/be/make-variables.html#predefined_l
 
 The behavior of $(location) and $(locations) expansion may change in the future with support either being removed
 entirely or the expansion changed to return the same path as ctx.expand_location() returns for these.
+
+The recommended approach is to now use $(rootpath) where you previously used $(location). To get from a $(rootpath)
+to the absolute path that $$(rlocation $(location)) returned you can use our javascript runfiles helper to resolve
+to the absolute path.
+
+BUILD.bazel:
+```
+params_file(
+    name = "params_file",
+    out = ":params_file.out",
+    args = ["$(rootpath :some_file)"],
+    data = [":some_file"],
+)
+
+nodejs_test(
+    name = "my_test",
+    data = [
+        ":params_file.out",
+        ":some_file",
+    ],
+    entry_point = ":params_file.spec.js",
+    templated_args = ["$(rootpath :params_file.out)"],
+)
+```
+
+my_test.js
+```
+const fs = require('fs');
+const runfiles = require(process.env['BAZEL_NODE_RUNFILES_HELPER']);
+const args = process.argv.slice(2);
+const params_file = runfiles.resolveWorkspaceRelative(args[0]);
+const params = fs.readFileSync(params_file, 'utf-8').split(/\r?\n/);
+const some_file = runfiles.resolveWorkspaceRelative(params[0])
+```
 
 2. Predefined variables & Custom variables are expanded second:
 
@@ -104,8 +135,8 @@ def _impl(ctx):
 
     expanded_args = []
 
-    # First expand predefined source/output path variables
-    # $(execpath), $(rootpath), $(manifestpath) & legacy $(location)
+    # First expand predefined source/output path variables:
+    # $(execpath), $(rootpath) & legacy $(location)
     for a in ctx.attr.args:
         expanded_args += _expand_location_into_runfiles(ctx, a)
 
