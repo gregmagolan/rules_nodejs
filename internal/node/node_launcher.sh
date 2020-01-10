@@ -145,7 +145,7 @@ export BAZEL_NODE_RUNFILES_HELPER=$(rlocation "TEMPLATED_runfiles_helper_script"
 
 # Export the location of the loader script as it can be used to boostrap
 # node require patch if needed
-export BAZEL_NODE_PATCH_REQUIRE=$(rlocation "TEMPLATED_loader_path")
+export BAZEL_NODE_PATCH_REQUIRE=$(rlocation "TEMPLATED_patcher_path")
 
 readonly repository_args=$(rlocation "TEMPLATED_repository_args")
 MAIN=$(rlocation "TEMPLATED_loader_path")

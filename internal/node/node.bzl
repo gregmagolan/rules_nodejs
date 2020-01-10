@@ -105,17 +105,27 @@ def _write_loader_script(ctx):
         entry_point_path = entry_point_path[:-4] + ".jsx"
 
     ctx.actions.expand_template(
-        template = ctx.file._loader_template,
-        output = ctx.outputs.loader,
+        template = ctx.file._patcher_template,
+        output = ctx.outputs.patcher,
         substitutions = {
             "TEMPLATED_bin_dir": ctx.bin_dir.path,
-            "TEMPLATED_entry_point": entry_point_path,
             "TEMPLATED_gen_dir": ctx.genfiles_dir.path,
             "TEMPLATED_install_source_map_support": str(ctx.attr.install_source_map_support).lower(),
             "TEMPLATED_module_roots": "\n  " + ",\n  ".join(module_mappings),
             "TEMPLATED_node_modules_root": node_modules_root,
             "TEMPLATED_target": str(ctx.label),
             "TEMPLATED_user_workspace_name": ctx.workspace_name,
+        },
+        is_executable = True,
+    )
+
+    ctx.actions.expand_template(
+        template = ctx.file._loader_template,
+        output = ctx.outputs.loader,
+        substitutions = {
+            "TEMPLATED_entry_point": entry_point_path,
+            "TEMPLATED_node_patcher": "./" + ctx.outputs.patcher.basename,
+            "TEMPLATED_target": str(ctx.label),
         },
         is_executable = True,
     )
@@ -207,6 +217,7 @@ def _nodejs_binary_impl(ctx):
         "TEMPLATED_link_modules_script": _to_manifest_path(ctx, ctx.file._link_modules_script),
         "TEMPLATED_loader_path": _to_manifest_path(ctx, ctx.outputs.loader),
         "TEMPLATED_modules_manifest": _to_manifest_path(ctx, node_modules_manifest),
+        "TEMPLATED_patcher_path": _to_manifest_path(ctx, ctx.outputs.patcher),
         "TEMPLATED_repository_args": _to_manifest_path(ctx, ctx.file._repository_args),
         "TEMPLATED_runfiles_helper_script": _to_manifest_path(ctx, ctx.file._runfiles_helper_script),
         "TEMPLATED_script_path": _to_execroot_path(ctx, ctx.file.entry_point),
@@ -222,6 +233,7 @@ def _nodejs_binary_impl(ctx):
     runfiles = []
     runfiles.extend(node_tool_files)
     runfiles.extend(ctx.files._bash_runfile_helpers)
+    runfiles.append(ctx.outputs.patcher)
     runfiles.append(ctx.outputs.loader)
     runfiles.append(ctx.file._repository_args)
 
@@ -241,6 +253,7 @@ def _nodejs_binary_impl(ctx):
             runfiles = ctx.runfiles(
                 transitive_files = depset(runfiles),
                 files = node_tool_files + [
+                            ctx.outputs.patcher,
                             ctx.outputs.loader,
                         ] + ctx.files._source_map_support_files +
 
@@ -446,6 +459,10 @@ jasmine_node_test(
         default = Label("@nodejs//:node_bin"),
         allow_single_file = True,
     ),
+    "_patcher_template": attr.label(
+        default = Label("//internal/node:node_patcher.js"),
+        allow_single_file = True,
+    ),
     "_repository_args": attr.label(
         default = Label("@nodejs//:bin/node_repo_args.sh"),
         allow_single_file = True,
@@ -466,6 +483,7 @@ jasmine_node_test(
 
 _NODEJS_EXECUTABLE_OUTPUTS = {
     "loader": "%{name}_loader.js",
+    "patcher": "%{name}_patcher.js",
     "script": "%{name}.sh",
 }
 
