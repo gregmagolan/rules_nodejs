@@ -1,6 +1,13 @@
 load("@npm_bazel_jasmine//:index.from_src.bzl", "jasmine_node_test")
 
 jasmine_node_test(
+    name = "underscore_spec_bootstrap_test",
+    srcs = ["foo_spec.js"],
+    data = ["bootstrap.js"],
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
+)
+
+jasmine_node_test(
     name = "underscore_spec_test",
     srcs = ["foo_spec.js"],
 )
@@ -27,10 +34,27 @@ jasmine_node_test(
 )
 
 jasmine_node_test(
+    name = "sharding_bootstrap_test",
+    srcs = ["sharded_test.js"],
+    data = ["bootstrap.js"],
+    shard_count = 3,
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
+)
+
+jasmine_node_test(
     name = "failing_sharding_test",
     srcs = ["failing_sharded_test.js"],
     expected_exit_code = 3,
     shard_count = 2,
+)
+
+jasmine_node_test(
+    name = "failing_sharding_bootstrap_test",
+    srcs = ["failing_sharded_test.js"],
+    data = ["bootstrap.js"],
+    expected_exit_code = 3,
+    shard_count = 2,
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
 )
 
 jasmine_node_test(
@@ -92,6 +116,14 @@ jasmine_node_test(
     name = "fail_test",
     srcs = ["fail.spec.js"],
     expected_exit_code = 3,
+)
+
+jasmine_node_test(
+    name = "fail_bootstrap_test",
+    srcs = ["fail.spec.js"],
+    data = ["bootstrap.js"],
+    expected_exit_code = 3,
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
 )
 
 jasmine_node_test(

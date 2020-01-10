@@ -107,6 +107,13 @@ nodejs_test(
     templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
 )
 
+nodejs_test(
+    name = "bootstrap_patch_test",
+    data = ["bootstrap_with_patch.js"],
+    entry_point = ":bootstrap.spec.js",
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap_with_patch.js))"],
+)
+
 # Special case when $(location) is for a root file
 nodejs_test(
     name = "bootstrap_root_test",
@@ -267,4 +274,26 @@ golden_file_test(
     name = "expand_variables_test",
     actual = ":expand_variables.out",
     golden = "expand_variables.golden",
+)
+
+nodejs_test(
+    name = "fail_test",
+    entry_point = "fail.spec.js",
+    expected_exit_code = 55,
+)
+
+nodejs_test(
+    name = "fail_bootstrap_test",
+    data = ["bootstrap.js"],
+    entry_point = "fail.spec.js",
+    expected_exit_code = 55,
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap.js))"],
+)
+
+nodejs_test(
+    name = "fail_bootstrap_with_patch_test",
+    data = ["bootstrap_with_patch.js"],
+    entry_point = "fail.spec.js",
+    expected_exit_code = 55,
+    templated_args = ["--node_options=--require=$(rlocation $(location :bootstrap_with_patch.js))"],
 )
