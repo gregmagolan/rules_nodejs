@@ -246,7 +246,7 @@ Include as much of the build output as you can without disclosing anything confi
             return this.resolve(path.posix.join(this.workspace, this.package, modulePath));
         }
         patchRequire() {
-            const requirePatch = process.env['BAZEL_NODE_PATCH_REQUIRE'];
+            const requirePatch = process.env['BAZEL_NODE_REQUIRE_PATCH'];
             if (!requirePatch) {
                 throw new Error('require patch location could not be determined from the environment');
             }
