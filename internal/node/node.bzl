@@ -78,7 +78,7 @@ def _compute_node_modules_root(ctx):
         ] if f])
     return node_modules_root
 
-def _write_loader_script(ctx):
+def _write_require_patch_script(ctx):
     # Generates the JavaScript snippet of module roots mappings, with each entry
     # in the form:
     #   {module_name: /^mod_name\b/, module_root: 'path/to/mod_name'}
@@ -105,8 +105,8 @@ def _write_loader_script(ctx):
         entry_point_path = entry_point_path[:-4] + ".jsx"
 
     ctx.actions.expand_template(
-        template = ctx.file._patcher_template,
-        output = ctx.outputs.patcher,
+        template = ctx.file._node_require_patch_template,
+        output = ctx.outputs.require_patch_script,
         substitutions = {
             "TEMPLATED_bin_dir": ctx.bin_dir.path,
             "TEMPLATED_gen_dir": ctx.genfiles_dir.path,
@@ -115,17 +115,6 @@ def _write_loader_script(ctx):
             "TEMPLATED_node_modules_root": node_modules_root,
             "TEMPLATED_target": str(ctx.label),
             "TEMPLATED_user_workspace_name": ctx.workspace_name,
-        },
-        is_executable = True,
-    )
-
-    ctx.actions.expand_template(
-        template = ctx.file._loader_template,
-        output = ctx.outputs.loader,
-        substitutions = {
-            "TEMPLATED_entry_point": entry_point_path,
-            "TEMPLATED_node_patcher": "./" + ctx.outputs.patcher.basename,
-            "TEMPLATED_target": str(ctx.label),
         },
         is_executable = True,
     )
@@ -175,7 +164,7 @@ def _nodejs_binary_impl(ctx):
             sources_depsets.append(d.files)
     sources = depset(transitive = sources_depsets)
 
-    _write_loader_script(ctx)
+    _write_require_patch_script(ctx)
 
     env_vars = "export BAZEL_TARGET=%s\n" % ctx.label
     env_vars += "export BAZEL_WORKSPACE=%s\n" % ctx.workspace_name
@@ -201,7 +190,7 @@ def _nodejs_binary_impl(ctx):
 
     node_tool_files.append(ctx.file._link_modules_script)
     node_tool_files.append(ctx.file._runfiles_helper_script)
-    node_tool_files.append(ctx.file._bazel_require_script)
+    node_tool_files.append(ctx.file._node_patches_script)
     node_tool_files.append(node_modules_manifest)
 
     is_builtin = ctx.attr._node.label.workspace_name in ["nodejs_%s" % p for p in BUILT_IN_NODE_PLATFORMS]
@@ -211,13 +200,12 @@ def _nodejs_binary_impl(ctx):
             expand_location_into_runfiles(ctx, a, ctx.attr.data)
             for a in ctx.attr.templated_args
         ]),
-        "TEMPLATED_bazel_require_script": _to_manifest_path(ctx, ctx.file._bazel_require_script),
+        "TEMPLATED_node_patches_script": _to_manifest_path(ctx, ctx.file._node_patches_script),
         "TEMPLATED_env_vars": env_vars,
         "TEMPLATED_expected_exit_code": str(expected_exit_code),
         "TEMPLATED_link_modules_script": _to_manifest_path(ctx, ctx.file._link_modules_script),
-        "TEMPLATED_loader_path": _to_manifest_path(ctx, ctx.outputs.loader),
         "TEMPLATED_modules_manifest": _to_manifest_path(ctx, node_modules_manifest),
-        "TEMPLATED_patcher_path": _to_manifest_path(ctx, ctx.outputs.patcher),
+        "TEMPLATED_require_patch_script": _to_manifest_path(ctx, ctx.outputs.require_patch_script),
         "TEMPLATED_repository_args": _to_manifest_path(ctx, ctx.file._repository_args),
         "TEMPLATED_runfiles_helper_script": _to_manifest_path(ctx, ctx.file._runfiles_helper_script),
         "TEMPLATED_script_path": _to_execroot_path(ctx, ctx.file.entry_point),
@@ -225,7 +213,7 @@ def _nodejs_binary_impl(ctx):
     }
     ctx.actions.expand_template(
         template = ctx.file._launcher_template,
-        output = ctx.outputs.script,
+        output = ctx.outputs.launcher_sh,
         substitutions = substitutions,
         is_executable = True,
     )
@@ -233,15 +221,14 @@ def _nodejs_binary_impl(ctx):
     runfiles = []
     runfiles.extend(node_tool_files)
     runfiles.extend(ctx.files._bash_runfile_helpers)
-    runfiles.append(ctx.outputs.patcher)
-    runfiles.append(ctx.outputs.loader)
+    runfiles.append(ctx.outputs.require_patch_script)
     runfiles.append(ctx.file._repository_args)
 
     if is_windows(ctx):
-        runfiles.append(ctx.outputs.script)
-        executable = create_windows_native_launcher_script(ctx, ctx.outputs.script)
+        runfiles.append(ctx.outputs.launcher_sh)
+        executable = create_windows_native_launcher_script(ctx, ctx.outputs.launcher_sh)
     else:
-        executable = ctx.outputs.script
+        executable = ctx.outputs.launcher_sh
 
     # entry point is only needed in runfiles if it is a .js file
     if ctx.file.entry_point.extension == "js":
@@ -253,8 +240,7 @@ def _nodejs_binary_impl(ctx):
             runfiles = ctx.runfiles(
                 transitive_files = depset(runfiles),
                 files = node_tool_files + [
-                            ctx.outputs.patcher,
-                            ctx.outputs.loader,
+                            ctx.outputs.require_patch_script,
                         ] + ctx.files._source_map_support_files +
 
                         # We need this call to the list of Files.
@@ -439,10 +425,6 @@ jasmine_node_test(
         """,
     ),
     "_bash_runfile_helpers": attr.label(default = Label("@bazel_tools//tools/bash/runfiles")),
-    "_bazel_require_script": attr.label(
-        default = Label("//internal/node:bazel_require_script.js"),
-        allow_single_file = True,
-    ),
     "_launcher_template": attr.label(
         default = Label("//internal/node:node_launcher.sh"),
         allow_single_file = True,
@@ -459,8 +441,12 @@ jasmine_node_test(
         default = Label("@nodejs//:node_bin"),
         allow_single_file = True,
     ),
-    "_patcher_template": attr.label(
-        default = Label("//internal/node:node_patcher.js"),
+    "_node_patches_script": attr.label(
+        default = Label("//internal/node:node_patches.js"),
+        allow_single_file = True,
+    ),
+    "_node_require_patch_template": attr.label(
+        default = Label("//internal/node:node_require_patch.js"),
         allow_single_file = True,
     ),
     "_repository_args": attr.label(
@@ -482,9 +468,8 @@ jasmine_node_test(
 }
 
 _NODEJS_EXECUTABLE_OUTPUTS = {
-    "loader": "%{name}_loader.js",
-    "patcher": "%{name}_patcher.js",
-    "script": "%{name}.sh",
+    "require_patch_script": "%{name}_require_patch.js",
+    "launcher_sh": "%{name}.sh",
 }
 
 # The name of the declared rule appears in

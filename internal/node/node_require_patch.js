@@ -25,6 +25,8 @@
 var path = require('path');
 var fs = require('fs');
 
+console.error('HERE I AM', __filename)
+
 // Ensure that node is added to the path for any subprocess calls
 const isWindows = /^win/i.test(process.platform);
 process.env.PATH = [path.dirname(process.execPath), process.env.PATH].join(isWindows ? ';' : ':');
@@ -351,6 +353,7 @@ function resolveRunfiles(parent, ...pathSegments) {
 }
 
 var originalResolveFilename = module.constructor._resolveFilename;
+
 module.constructor._resolveFilename =
     function(request, parent, isMain, options) {
   const parentFilename = (parent && parent.filename) ? parent.filename : undefined;
