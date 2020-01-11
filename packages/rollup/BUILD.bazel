@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "codeowners", "pkg_npm")
+load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "codeowners", "pkg_npm", "pkg_tar")
 load("@build_bazel_rules_nodejs//tools/stardoc:index.bzl", "stardoc")
 load("//third_party/github.com/bazelbuild/bazel-skylib:rules/copy_file.bzl", "copy_file")
 
@@ -109,4 +109,13 @@ pkg_npm(
         ":copy_worker_proto",
         ":worker.js",
     ],
+)
+
+# This artifact is used for snapshot builds
+pkg_tar(
+    name = "archive",
+    srcs = [":npm_package"],
+    extension = "tar.gz",
+    strip_prefix = "./npm_package",
+    tags = ["manual"],
 )

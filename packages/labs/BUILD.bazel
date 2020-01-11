@@ -1,5 +1,5 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "codeowners", "pkg_npm")
+load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "codeowners", "pkg_npm", "pkg_tar")
 load("@build_bazel_rules_nodejs//tools/stardoc:index.bzl", "stardoc")
 
 codeowners(
@@ -47,4 +47,13 @@ pkg_npm(
     ],
     build_file_content = "",
     deps = ["README.md"],
+)
+
+# This artifact is used for snapshot builds
+pkg_tar(
+    name = "archive",
+    srcs = [":npm_package"],
+    extension = "tar.gz",
+    strip_prefix = "./npm_package",
+    tags = ["manual"],
 )

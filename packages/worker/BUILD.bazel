@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "pkg_npm")
+load("@build_bazel_rules_nodejs//:tools/defaults.bzl", "pkg_npm", "pkg_tar")
 load("//third_party/github.com/bazelbuild/bazel-skylib:rules/copy_file.bzl", "copy_file")
 
 # We reach inside the @bazel/typescript npm package to grab this one .js file
@@ -72,4 +72,13 @@ pkg_npm(
         ":copy_worker_proto",
         ":npm_version_check",
     ],
+)
+
+# This artifact is used for snapshot builds
+pkg_tar(
+    name = "archive",
+    srcs = [":npm_package"],
+    extension = "tar.gz",
+    strip_prefix = "./npm_package",
+    tags = ["manual"],
 )
