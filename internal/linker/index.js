@@ -466,9 +466,6 @@ Include as much of the build output as you can without disclosing anything confi
                             case 'src':
                                 target = path.join(workspaceAbs, toWorkspaceDir(modulePath));
                                 break;
-                            case 'runfiles':
-                                target = runfiles.resolve(modulePath) || '<runfiles resolution failed>';
-                                break;
                         }
                         yield symlink(target, m.name);
                     }
