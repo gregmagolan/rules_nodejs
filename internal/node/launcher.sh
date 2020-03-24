@@ -90,9 +90,6 @@ fi
 export RUNFILES
 # --- end RUNFILES initialization ---
 
-# TODO: debug - remove this
-set -x
-
 TEMPLATED_env_vars
 
 # Note: for debugging it is useful to see what files are actually present
@@ -161,6 +158,7 @@ MAIN=$(rlocation "TEMPLATED_loader_script")
 
 readonly repository_args=$(rlocation "TEMPLATED_repository_args")
 readonly link_modules_script=$(rlocation "TEMPLATED_link_modules_script")
+readonly lcov_merger_script=$(rlocation "TEMPLATED_lcov_merger_script")
 node_patches_script=$(rlocation "TEMPLATED_node_patches_script")
 require_patch_script=${BAZEL_NODE_PATCH_REQUIRE}
 
@@ -222,13 +220,40 @@ export BAZEL_PATCH_ROOT=$(dirname $PWD)
 # fail before we could assert that we expected that failure.
 readonly EXPECTED_EXIT_CODE="TEMPLATED_expected_exit_code"
 if [ "${EXPECTED_EXIT_CODE}" -eq "0" ]; then
-  # Replace the current process (bash) with a node process.
-  # This means that stdin, stdout, signals, etc will be transparently
-  # handled by the node process.
-  # If we had merely forked a child process here, we'd be responsible
-  # for forwarding those OS interactions.
-  exec "${node}" "${LAUNCHER_NODE_OPTIONS[@]:-}" "${USER_NODE_OPTIONS[@]:-}" "${MAIN}" ${ARGS[@]+"${ARGS[@]}"}
-  # exec terminates execution of this shell script, nothing later will run.
+  if [[ -n "${COVERAGE_DIR:-}" ]]; then
+    if [[ -n "${VERBOSE_LOGS:-}" ]]; then
+      echo "Turning on node coverage with NODE_V8_COVERAGE"
+    fi
+    export NODE_V8_COVERAGE=${COVERAGE_DIR}
+  fi
+
+  set +e
+  "${node}" "${LAUNCHER_NODE_OPTIONS[@]:-}" "${USER_NODE_OPTIONS[@]:-}" "${MAIN}" ${ARGS[@]+"${ARGS[@]}"}
+  RESULT="$?"
+  set -e
+
+  if [ ${RESULT} -ne 0 ]; then
+    exit ${RESULT}
+  fi
+
+  if [[ -n "${COVERAGE_DIR:-}" ]]; then
+    if [[ -n "${VERBOSE_LOGS:-}" ]]; then
+      echo "Running coverage lcov merger script with arguments"
+      echo "  --coverage_dir="${COVERAGE_DIR}""
+      echo "  --output_file="${COVERAGE_OUTPUT_FILE}""
+      echo "  --source_file_manifest="${COVERAGE_MANIFEST}""
+    fi
+
+    set +e
+    "${node}" "${lcov_merger_script}" --coverage_dir="${COVERAGE_DIR}" --output_file="${COVERAGE_OUTPUT_FILE}" --source_file_manifest="${COVERAGE_MANIFEST}"
+    RESULT="$?"
+    set -e
+
+    if [ ${RESULT} -ne 0 ]; then
+      exit ${RESULT}
+    fi
+  fi
+  exit 0
 fi
 
 set +e

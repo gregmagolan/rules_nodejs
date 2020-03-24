@@ -42,7 +42,6 @@ stardoc(
 filegroup(
     name = "package_contents",
     srcs = [
-        "coverage_runner.js",
         "index.bzl",
         "index.js",
         "jasmine_node_test.bzl",
@@ -54,7 +53,6 @@ filegroup(
 js_library(
     name = "jasmine__pkg",
     srcs = [
-        "coverage_runner.js",
         "index.js",
         "jasmine_runner.js",
     ],

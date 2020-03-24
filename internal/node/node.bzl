@@ -188,14 +188,6 @@ def _nodejs_binary_impl(ctx):
         elif k in ctx.configuration.default_shell_env.keys():
             env_vars += "export %s=\"%s\"\n" % (k, ctx.configuration.default_shell_env[k])
 
-    # indicates that this was run with `bazel coverage`
-    if ctx.configuration.coverage_enabled:
-        # indicates that we have files to instrumented somewhere in the deps
-        if (ctx.coverage_instrumented() or any([ctx.coverage_instrumented(dep) for dep in ctx.attr.data])):
-            # we export NODE_V8_COVERAGE here to tell V8 to collect coverage
-            # then when the nodejs process exists it'll write it to COVERAGE_DIR
-            env_vars += "export NODE_V8_COVERAGE=$COVERAGE_DIR\n"
-
     expected_exit_code = 0
     if hasattr(ctx.attr, "expected_exit_code"):
         expected_exit_code = ctx.attr.expected_exit_code
@@ -215,6 +207,7 @@ def _nodejs_binary_impl(ctx):
     node_tool_files.append(ctx.file._link_modules_script)
     node_tool_files.append(ctx.file._runfiles_helper_script)
     node_tool_files.append(ctx.file._node_patches_script)
+    node_tool_files.append(ctx.file._lcov_merger_script)
     node_tool_files.append(node_modules_manifest)
 
     is_builtin = ctx.attr._node.label.workspace_name in ["nodejs_%s" % p for p in BUILT_IN_NODE_PLATFORMS]
@@ -226,6 +219,7 @@ def _nodejs_binary_impl(ctx):
         ]),
         "TEMPLATED_env_vars": env_vars,
         "TEMPLATED_expected_exit_code": str(expected_exit_code),
+        "TEMPLATED_lcov_merger_script": _to_manifest_path(ctx, ctx.file._lcov_merger_script),
         "TEMPLATED_link_modules_script": _to_manifest_path(ctx, ctx.file._link_modules_script),
         "TEMPLATED_loader_script": _to_manifest_path(ctx, ctx.outputs.loader_script),
         "TEMPLATED_modules_manifest": _to_manifest_path(ctx, node_modules_manifest),
@@ -459,6 +453,10 @@ jasmine_node_test(
     "_bash_runfile_helpers": attr.label(default = Label("@bazel_tools//tools/bash/runfiles")),
     "_launcher_template": attr.label(
         default = Label("//internal/node:launcher.sh"),
+        allow_single_file = True,
+    ),
+    "_lcov_merger_script": attr.label(
+        default = Label("//internal/coverage:lcov_merger.js"),
         allow_single_file = True,
     ),
     "_link_modules_script": attr.label(

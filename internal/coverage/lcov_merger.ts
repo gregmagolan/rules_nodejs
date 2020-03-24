@@ -19,8 +19,8 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-function getArg(argv: string[], key: string): string {
-  return argv.find(a => a === key)!.split('=')[1];
+function _getArg(argv: string[], key: string): string {
+  return argv.find(a => a.startsWith(key))!.split('=')[1];
 }
 
 /**
@@ -28,15 +28,14 @@ function getArg(argv: string[], key: string): string {
  * and using NODE_V8_COVERAGE it may produce more than one coverage file, however bazel expects
  * there to be only one lcov file. So this collects up the v8 coverage json's merges them and
  * converts them to lcov for bazel to pick up later.
- * any tool reporting coverage not just jasmine
  */
 async function main() {
-  // see here for what args are passed in
+  // Using the standard args for a bazel lcov merger binary:
   // https://github.com/bazelbuild/bazel/blob/master/tools/test/collect_coverage.sh#L175-L181
   const argv = process.argv;
-  const coverageDir = getArg(argv, 'coverage_dir');
-  const outputFile = getArg(argv, 'output_file');
-  const sourceFileManifest = getArg(argv, 'source_file_manifest');
+  const coverageDir = _getArg(argv, '--coverage_dir=');
+  const outputFile = _getArg(argv, '--output_file=');
+  const sourceFileManifest = _getArg(argv, '--source_file_manifest=');
   const tmpdir = process.env.TEST_TMPDIR;
 
   if (!sourceFileManifest || !tmpdir || !outputFile) {
@@ -74,7 +73,16 @@ async function main() {
           });
 
   // only require in c8 when we're actually going to do some coverage
-  const c8 = require('c8');
+  let c8;
+  try {
+    c8 = require('c8');
+  } catch (e) {
+    if (e.code == 'MODULE_NOT_FOUND') {
+      console.error('ERROR: c8 npm package is required for bazel coverage');
+      process.exit(1);
+    }
+    throw e;
+  }
   // see https://github.com/bcoe/c8/blob/master/lib/report.js
   // for more info on this function
   // TODO: enable the --all functionality

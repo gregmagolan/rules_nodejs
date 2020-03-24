@@ -28,6 +28,5 @@ def jasmine_node_test(
         deps = deps + jasmine_deps,
         jasmine = "@npm_bazel_jasmine//:jasmine__pkg",
         jasmine_entry_point = "@npm_bazel_jasmine//:jasmine_runner.js",
-        coverage_entry_point = "@npm_bazel_jasmine//:coverage_runner.js",
         **kwargs
     )
