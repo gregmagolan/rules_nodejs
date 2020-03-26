@@ -144,6 +144,12 @@ def _to_execroot_path(ctx, file):
             return "/".join(parts[2:])
     return file.path
 
+def _to_runfiles_path(ctx, file):
+    result = _to_execroot_path(ctx, file)
+    if result.startswith(ctx.bin_dir.path + "/"):
+        result = result[len(ctx.bin_dir.path) + 1:]
+    return result
+
 def _nodejs_binary_impl(ctx):
     node_modules_manifest = write_node_modules_manifest(ctx)
     node_modules_depsets = []
@@ -216,6 +222,9 @@ def _nodejs_binary_impl(ctx):
             expand_location_into_runfiles(ctx, a, ctx.attr.data)
             for a in ctx.attr.templated_args
         ]),
+        "TEMPLATED_entry_point_execroot_path": _to_execroot_path(ctx, ctx.file.entry_point),
+        "TEMPLATED_entry_point_manifest_path": _to_manifest_path(ctx, ctx.file.entry_point),
+        "TEMPLATED_entry_point_runfiles_path": _to_runfiles_path(ctx, ctx.file.entry_point),
         "TEMPLATED_env_vars": env_vars,
         "TEMPLATED_expected_exit_code": str(expected_exit_code),
         "TEMPLATED_link_modules_script": _to_manifest_path(ctx, ctx.file._link_modules_script),
@@ -225,7 +234,6 @@ def _nodejs_binary_impl(ctx):
         "TEMPLATED_repository_args": _to_manifest_path(ctx, ctx.file._repository_args),
         "TEMPLATED_require_patch_script": _to_manifest_path(ctx, ctx.outputs.require_patch_script),
         "TEMPLATED_runfiles_helper_script": _to_manifest_path(ctx, ctx.file._runfiles_helper_script),
-        "TEMPLATED_script_path": _to_execroot_path(ctx, ctx.file.entry_point),
         "TEMPLATED_vendored_node": "" if is_builtin else strip_external(ctx.file._node.path),
     }
     ctx.actions.expand_template(
