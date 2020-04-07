@@ -216,7 +216,6 @@ fi
 # Tell the node_patches_script that programs should not escape the execroot
 # Bazel always sets the PWD to execroot/my_wksp so we go up one directory.
 export BAZEL_PATCH_ROOT=$(dirname $PWD)
-export BAZEL_WORKSPACE=$(basename $PWD)
 
 # The EXPECTED_EXIT_CODE lets us write bazel tests which assert that
 # a binary fails to run. Otherwise any failure would make such a test
