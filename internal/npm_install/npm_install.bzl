@@ -79,6 +79,14 @@ fine grained npm dependencies.
         mandatory = True,
         allow_single_file = True,
     ),
+    "package_path": attr.string(
+        default = "",
+        doc = """If set, link the 3rd party node_modules dependencies under the package path specified.
+
+In most cases, this should be the directory of the package.json file so that the linker links the node_modules
+in the same location they are found in the source tree. In a future release, this will default to the package.json
+directory.""",
+    ),
     "quiet": attr.bool(
         default = True,
         doc = "If stdout and stderr should be printed to the terminal.",
@@ -119,18 +127,23 @@ def _create_build_files(repository_ctx, rule_type, node, lock_file):
     repository_ctx.report_progress("Processing node_modules: installing Bazel packages and generating BUILD files")
     if repository_ctx.attr.manual_build_file_contents:
         repository_ctx.file("manual_build_file_contents", repository_ctx.attr.manual_build_file_contents)
-    result = repository_ctx.execute([
-        node,
-        "index.js",
-        repository_ctx.attr.name,
-        rule_type,
-        repository_ctx.path(repository_ctx.attr.package_json),
-        repository_ctx.path(lock_file),
-        str(repository_ctx.attr.strict_visibility),
-        ",".join(repository_ctx.attr.included_files),
-        native.bazel_version,
+    result = repository_ctx.execute(
+        [
+            node,
+            "index.js",
+            repository_ctx.attr.name,
+            rule_type,
+            repository_ctx.path(repository_ctx.attr.package_json),
+            repository_ctx.path(lock_file),
+            str(repository_ctx.attr.strict_visibility),
+            ",".join(repository_ctx.attr.included_files),
+            native.bazel_version,
+            repository_ctx.attr.package_path,
+        ],
         # double the default timeout in case of many packages, see #2231
-    ], timeout = 1200, quiet = repository_ctx.attr.quiet)
+        timeout = 1200,
+        quiet = repository_ctx.attr.quiet,
+    )
     if result.return_code:
         fail("generate_build_file.ts failed: \nSTDOUT:\n%s\nSTDERR:\n%s" % (result.stdout, result.stderr))
 

@@ -73,6 +73,12 @@ _ATTRS = {
         See `examples/user_managed_deps` for a working example of user-managed npm dependencies.""",
         default = False,
     ),
+    "external_npm_package_path": attr.string(
+        doc = """The local workspace path that the linker should link these node_modules to.
+
+        Used only when external_npm_package is True. If empty, the linker will link these node_modules at the root.""",
+        default = "",
+    ),
     "is_windows": attr.bool(
         doc = "Internal use only. Automatically set by macro",
         mandatory = True,
@@ -230,6 +236,7 @@ def _impl(ctx):
             direct_sources = depset(transitive = direct_sources_depsets),
             sources = depset(transitive = npm_sources_depsets),
             workspace = workspace_name,
+            path = ctx.attr.external_npm_package_path,
         ))
 
     # Don't provide DeclarationInfo if there are no typings to provide.

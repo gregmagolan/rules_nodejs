@@ -39,10 +39,11 @@ describe('launcher.sh environment', function() {
     expectPathsToMatch(process.env['BAZEL_TARGET'], '//internal/node/test:env_test');
     expectPathsToMatch(process.cwd(), `${process.env['RUNFILES_DIR']}/build_bazel_rules_nodejs`);
     expectPathsToMatch(process.env['PWD'], `${process.env['RUNFILES_DIR']}/build_bazel_rules_nodejs`);
-    expectPathsToMatch(process.env['BAZEL_PATCH_ROOT'], process.env['RUNFILES_DIR']);
-    expectPathsToMatch(process.env['BAZEL_NODE_MODULES_ROOT'], 'npm/node_modules');
+    expectPathsToMatch(process.env['BAZEL_PATCH_ROOT'], execroot);
+    expectPathsToMatch(process.env['BAZEL_NODE_MODULES_ROOTS'], ':npm');
     const expectedGuards = [
       `${execroot}/node_modules`,
+      `${execroot}/external/npm/node_modules`,
       `${runfilesRoot}/npm/node_modules`,
       `${runfilesRoot}/build_bazel_rules_nodejs/external/npm/node_modules`,
     ]
@@ -61,8 +62,11 @@ describe('launcher.sh environment', function() {
        expectPathsToMatch(env['BAZEL_WORKSPACE'], 'build_bazel_rules_nodejs');
        expectPathsToMatch(env['BAZEL_TARGET'], '//internal/node/test:dump_build_env');
        expectPathsToMatch(env['PWD'], execroot);
-       expectPathsToMatch(env['BAZEL_PATCH_ROOT'], path.dirname(execroot));
-       expectPathsToMatch(env['BAZEL_NODE_MODULES_ROOT'], 'build_bazel_rules_nodejs/node_modules');
+       expectPathsToMatch(env['BAZEL_PATCH_ROOT'], execroot);
+       // On Windows, an empty string value for 'BAZEL_NODE_MODULES_ROOTS' does not make it into
+       // dump_build_env.json
+       expectPathsToMatch(
+           env['BAZEL_NODE_MODULES_ROOTS'] ? env['BAZEL_NODE_MODULES_ROOTS'] : '', '');
        const expectedGuards = [
          `${execroot}/node_modules`,
        ]
@@ -82,11 +86,10 @@ describe('launcher.sh environment', function() {
        expectPathsToMatch(env['BAZEL_WORKSPACE'], 'build_bazel_rules_nodejs');
        expectPathsToMatch(env['BAZEL_TARGET'], '//internal/node/test:dump_build_env_alt');
        expectPathsToMatch(env['PWD'], execroot);
-       expectPathsToMatch(env['BAZEL_PATCH_ROOT'], path.dirname(execroot));
-       expectPathsToMatch(env['BAZEL_NODE_MODULES_ROOT'], 'npm/node_modules');
+       expectPathsToMatch(env['BAZEL_PATCH_ROOT'], execroot);
+       expectPathsToMatch(env['BAZEL_NODE_MODULES_ROOTS'], ':npm');
        const expectedGuards = [
          `${execroot}/node_modules`,
-         `${path.dirname(execroot)}/npm/node_modules`,
          `${execroot}/external/npm/node_modules`,
        ]
        expectPathsToMatch(env['BAZEL_PATCH_GUARDS'].split(','), expectedGuards);

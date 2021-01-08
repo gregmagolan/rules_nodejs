@@ -34,7 +34,7 @@ function mkdirp(p) {
     return __awaiter(this, void 0, void 0, function* () {
         if (p && !(yield exists(p))) {
             yield mkdirp(path.dirname(p));
-            log_verbose(`mkdir( ${p} )`);
+            log_verbose(`creating directory ${p} in ${process.cwd()}`);
             try {
                 yield fs.promises.mkdir(p);
             }
@@ -98,7 +98,7 @@ function deleteDirectory(p) {
 }
 function symlink(target, p) {
     return __awaiter(this, void 0, void 0, function* () {
-        log_verbose(`symlink( ${p} -> ${target} )`);
+        log_verbose(`creating symlink ${p} -> ${target} in ${process.cwd()}`);
         try {
             yield fs.promises.symlink(target, p, 'junction');
             return true;
@@ -117,33 +117,24 @@ function symlink(target, p) {
         }
     });
 }
-function resolveRoot(root, startCwd, isExecroot, runfiles) {
+function resolveExternalWorkspacePath(workspace, startCwd, isExecroot, execroot, runfiles) {
     return __awaiter(this, void 0, void 0, function* () {
         if (isExecroot) {
-            return root ? `${startCwd}/external/${root}` : `${startCwd}/node_modules`;
+            return `${execroot}/external/${workspace}`;
         }
-        const match = startCwd.match(BAZEL_OUT_REGEX);
-        if (!match) {
-            if (!root) {
-                return `${startCwd}/node_modules`;
-            }
-            return path.resolve(`${startCwd}/../${root}`);
+        if (!execroot) {
+            return path.resolve(`${startCwd}/../${workspace}`);
         }
-        const symlinkRoot = startCwd.slice(0, match.index);
-        process.chdir(symlinkRoot);
-        if (!root) {
-            return `${symlinkRoot}/node_modules`;
-        }
-        const fromManifest = runfiles.lookupDirectory(root);
+        const fromManifest = runfiles.lookupDirectory(workspace);
         if (fromManifest) {
             return fromManifest;
         }
         else {
-            const maybe = path.resolve(`${symlinkRoot}/external/${root}`);
-            if (fs.existsSync(maybe)) {
+            const maybe = path.resolve(`${execroot}/external/${workspace}`);
+            if (yield exists(maybe)) {
                 return maybe;
             }
-            return path.resolve(`${startCwd}/../${root}`);
+            return path.resolve(`${startCwd}/../${workspace}`);
         }
     });
 }
@@ -272,6 +263,9 @@ function exists(p) {
     });
 }
 function existsSync(p) {
+    if (!p) {
+        return false;
+    }
     try {
         fs.lstatSync(p);
         return true;
@@ -328,19 +322,6 @@ function liftElement(element) {
     }
     return element;
 }
-function toParentLink(link) {
-    return [link[0], path.dirname(link[1])];
-}
-function allElementsAlign(name, elements) {
-    if (!elements[0].link) {
-        return false;
-    }
-    const parentLink = toParentLink(elements[0].link);
-    if (!elements.every(e => !!e.link && isDirectChildLink(parentLink, e.link))) {
-        return false;
-    }
-    return !!elements[0].link && allElementsAlignUnder(name, parentLink, elements);
-}
 function allElementsAlignUnder(parentName, parentLink, elements) {
     for (const { name, link, children } of elements) {
         if (!link || children) {
@@ -361,16 +342,10 @@ function allElementsAlignUnder(parentName, parentLink, elements) {
 function isDirectChildPath(parent, child) {
     return parent === path.dirname(child);
 }
-function isDirectChildLink([parentRel, parentPath], [childRel, childPath]) {
-    if (parentRel !== childRel) {
-        return false;
-    }
-    if (!isDirectChildPath(parentPath, childPath)) {
-        return false;
-    }
-    return true;
+function isDirectChildLink(parentLink, childLink) {
+    return parentLink === path.dirname(childLink);
 }
-function isNameLinkPathTopAligned(namePath, [, linkPath]) {
+function isNameLinkPathTopAligned(namePath, linkPath) {
     return path.basename(namePath) === path.basename(linkPath);
 }
 function visitDirectoryPreserveLinks(dirPath, visit) {
@@ -390,28 +365,73 @@ function visitDirectoryPreserveLinks(dirPath, visit) {
         }
     });
 }
+function findExecroot(startCwd) {
+    if (existsSync(`${startCwd}/bazel-out`)) {
+        return startCwd;
+    }
+    const bazelOutMatch = startCwd.match(BAZEL_OUT_REGEX);
+    return bazelOutMatch ? startCwd.slice(0, bazelOutMatch.index) : undefined;
+}
 function main(args, runfiles) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!args || args.length < 1)
             throw new Error('requires one argument: modulesManifest path');
         const [modulesManifest] = args;
-        let { bin, root, modules, workspace } = JSON.parse(fs.readFileSync(modulesManifest));
+        log_verbose('manifest file:', modulesManifest);
+        let { workspace, bin, roots, modules } = JSON.parse(fs.readFileSync(modulesManifest));
         modules = modules || {};
-        log_verbose('manifest file', modulesManifest);
-        log_verbose('manifest contents', JSON.stringify({ workspace, bin, root, modules }, null, 2));
+        log_verbose('manifest contents:', JSON.stringify({ workspace, bin, roots, modules }, null, 2));
         const startCwd = process.cwd().replace(/\\/g, '/');
-        log_verbose('startCwd', startCwd);
-        const isExecroot = existsSync(`${startCwd}/bazel-out`);
-        log_verbose('isExecroot', isExecroot.toString());
-        const rootDir = yield resolveRoot(root, startCwd, isExecroot, runfiles);
-        log_verbose('resolved node_modules root', root, 'to', rootDir);
-        log_verbose('cwd', process.cwd());
-        if (!(yield exists(rootDir))) {
-            log_verbose('no third-party packages; mkdir node_modules at', root);
-            yield mkdirp(rootDir);
+        log_verbose('startCwd:', startCwd);
+        const execroot = findExecroot(startCwd);
+        log_verbose('execroot:', execroot ? execroot : 'not found');
+        const isExecroot = startCwd == execroot;
+        log_verbose('isExecroot:', isExecroot.toString());
+        if (!isExecroot && execroot) {
+            process.chdir(execroot);
+            log_verbose('changed directory to execroot', execroot);
         }
-        yield symlink(rootDir, 'node_modules');
-        process.chdir(rootDir);
+        for (const packagePath of Object.keys(roots)) {
+            const workspace = roots[packagePath];
+            const workspacePath = yield resolveExternalWorkspacePath(workspace, startCwd, isExecroot, execroot, runfiles);
+            log_verbose(`resolved ${workspace} workspace path to ${workspacePath}`);
+            const workspaceNodeModules = `${workspacePath}/node_modules`;
+            if (packagePath) {
+                if (yield exists(workspaceNodeModules)) {
+                    let resolvedPackagePath;
+                    if (!isExecroot) {
+                        const runfilesPackagePath = `${startCwd}/${packagePath}`;
+                        if (yield exists(runfilesPackagePath)) {
+                            yield symlink(workspaceNodeModules, `${runfilesPackagePath}/node_modules`);
+                            resolvedPackagePath = runfilesPackagePath;
+                        }
+                    }
+                    if (yield exists(packagePath)) {
+                        yield symlink(workspaceNodeModules, `${packagePath}/node_modules`);
+                        resolvedPackagePath = packagePath;
+                    }
+                    const packagePathBin = `${bin}/${packagePath}`;
+                    if (resolvedPackagePath && (yield exists(packagePathBin))) {
+                        yield symlink(`${resolvedPackagePath}/node_modules`, `${packagePathBin}/node_modules`);
+                    }
+                }
+            }
+            else {
+                if (yield exists(workspaceNodeModules)) {
+                    yield symlink(workspaceNodeModules, `node_modules`);
+                }
+                else {
+                    log_verbose('no root npm workspace node_modules folder to link to; creating node_modules directory in', process.cwd());
+                    yield mkdirp('node_modules');
+                }
+            }
+        }
+        const rootNpmWorkspace = roots ? roots[''] : undefined;
+        if (!rootNpmWorkspace) {
+            log_verbose('no root npm workspace; creating node_modules directory in ', process.cwd());
+            yield mkdirp('node_modules');
+        }
+        process.chdir('node_modules');
         function isLeftoverDirectoryFromLinker(stats, modulePath) {
             return __awaiter(this, void 0, void 0, function* () {
                 if (runfiles.manifest === undefined) {
@@ -451,44 +471,40 @@ function main(args, runfiles) {
             return __awaiter(this, void 0, void 0, function* () {
                 yield mkdirp(path.dirname(m.name));
                 if (m.link) {
-                    const [root, modulePath] = m.link;
+                    const modulePath = m.link;
                     let target;
-                    switch (root) {
-                        case 'execroot':
-                            if (isExecroot) {
-                                target = `${startCwd}/${modulePath}`;
-                                break;
-                            }
-                        case 'runfiles':
-                            let runfilesPath = modulePath;
-                            if (runfilesPath.startsWith(`${bin}/`)) {
-                                runfilesPath = runfilesPath.slice(bin.length + 1);
-                            }
-                            else if (runfilesPath === bin) {
-                                runfilesPath = '';
-                            }
-                            const externalPrefix = 'external/';
-                            if (runfilesPath.startsWith(externalPrefix)) {
-                                runfilesPath = runfilesPath.slice(externalPrefix.length);
-                            }
-                            else {
-                                runfilesPath = `${workspace}/${runfilesPath}`;
-                            }
-                            try {
-                                target = runfiles.resolve(runfilesPath);
-                                if (runfiles.manifest && root == 'execroot' && modulePath.startsWith(`${bin}/`)) {
-                                    if (!target.includes(`/${bin}/`)) {
-                                        const e = new Error(`could not resolve modulePath ${modulePath}`);
-                                        e.code = 'MODULE_NOT_FOUND';
-                                        throw e;
-                                    }
+                    if (isExecroot) {
+                        target = `${startCwd}/${modulePath}`;
+                    }
+                    if (!isExecroot || !existsSync(target)) {
+                        let runfilesPath = modulePath;
+                        if (runfilesPath.startsWith(`${bin}/`)) {
+                            runfilesPath = runfilesPath.slice(bin.length + 1);
+                        }
+                        else if (runfilesPath === bin) {
+                            runfilesPath = '';
+                        }
+                        const externalPrefix = 'external/';
+                        if (runfilesPath.startsWith(externalPrefix)) {
+                            runfilesPath = runfilesPath.slice(externalPrefix.length);
+                        }
+                        else {
+                            runfilesPath = `${workspace}/${runfilesPath}`;
+                        }
+                        try {
+                            target = runfiles.resolve(runfilesPath);
+                            if (runfiles.manifest && modulePath.startsWith(`${bin}/`)) {
+                                if (!target.includes(`/${bin}/`)) {
+                                    const e = new Error(`could not resolve modulePath ${modulePath}`);
+                                    e.code = 'MODULE_NOT_FOUND';
+                                    throw e;
                                 }
                             }
-                            catch (err) {
-                                target = undefined;
-                                log_verbose(`runfiles resolve failed for module '${m.name}': ${err.message}`);
-                            }
-                            break;
+                        }
+                        catch (err) {
+                            target = undefined;
+                            log_verbose(`runfiles resolve failed for module '${m.name}': ${err.message}`);
+                        }
                     }
                     const stats = yield gracefulLstat(m.name);
                     const isLeftOver = (stats !== null && (yield isLeftoverDirectoryFromLinker(stats, m.name)));

@@ -19,6 +19,7 @@ workspace(
         # cypress_deps must be a managed directory to ensure it is downloaded before cypress_repository is run.
         "@cypress_deps": ["packages/cypress/test/node_modules"],
         "@npm": ["node_modules"],
+        "@npm_internal_linker_test": ["internal/linker/test/node_modules"],
         "@npm_node_patches": ["packages/node-patches/node_modules"],
     },
 )
@@ -55,6 +56,13 @@ yarn_install(
     },
     package_json = "//:package.json",
     yarn_lock = "//:yarn.lock",
+)
+
+yarn_install(
+    name = "npm_internal_linker_test",
+    package_json = "//internal/linker/test:package.json",
+    package_path = "internal/linker/test",
+    yarn_lock = "//internal/linker/test:yarn.lock",
 )
 
 npm_install(
