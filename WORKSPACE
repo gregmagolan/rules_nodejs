@@ -189,6 +189,7 @@ yarn_install(
         ".json",
         ".proto",
     ],
+    incompatible_node_module_package_path = True,
     package_json = "//:tools/fine_grained_deps_yarn/package.json",
     symlink_node_modules = False,
     yarn_lock = "//:tools/fine_grained_deps_yarn/yarn.lock",
@@ -212,6 +213,7 @@ npm_install(
         ".json",
         ".proto",
     ],
+    incompatible_node_module_package_path = True,
     npm_command = "install",
     package_json = "//:tools/fine_grained_deps_npm/package.json",
     package_lock_json = "//:tools/fine_grained_deps_npm/package-lock.json",
@@ -220,6 +222,7 @@ npm_install(
 
 yarn_install(
     name = "fine_grained_no_bin",
+    incompatible_node_module_package_path = True,
     package_json = "//:tools/fine_grained_no_bin/package.json",
     symlink_node_modules = False,
     yarn_lock = "//:tools/fine_grained_no_bin/yarn.lock",
